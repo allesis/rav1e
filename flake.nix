@@ -43,6 +43,7 @@
         buildInputs = with pkgs; [
           rust-bin.stable.latest.default
           rust-analyzer
+	  nasm
         ];
         packages = with pkgs; [
           rustToolchain
