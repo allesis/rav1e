@@ -45,6 +45,11 @@
           rust-analyzer
 	  nasm
         ];
+	cargoBuildFlags = [
+  "--no-default-features"
+  "--features=binaries,ivf,y4m"
+];
+
         packages = with pkgs; [
           rustToolchain
           openssl
