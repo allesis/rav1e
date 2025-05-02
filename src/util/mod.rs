@@ -12,6 +12,7 @@ mod cdf;
 mod kmeans;
 mod logexp;
 mod uninit;
+mod write_out;
 
 pub use v_frame::math::*;
 pub use v_frame::pixel::*;
