@@ -12,14 +12,12 @@ mod cdf;
 mod kmeans;
 mod logexp;
 mod uninit;
-mod write_out;
-
-pub use v_frame::math::*;
-pub use v_frame::pixel::*;
 
 pub use align::*;
 pub use cdf::*;
-pub use uninit::*;
-
 pub use kmeans::*;
+pub use uninit::*;
+pub use v_frame::math::*;
+pub use v_frame::pixel::*;
+
 pub(crate) use logexp::*;
