@@ -1554,6 +1554,7 @@ dependencies = [
  "semver",
  "serde",
  "serde-big-array",
+ "serde_json",
  "signal-hook",
  "simd_helpers",
  "thiserror 2.0.12",

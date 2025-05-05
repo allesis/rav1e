@@ -38,7 +38,8 @@ binaries = [
   "av-metrics",
   "nom",
 ]
-default = ["binaries", "threading", "signal_support", "git_version", "y4m", "scan_fmt", "ivf"]
+default = ["binaries", "threading", "signal_support", "git_version", "y4m",
+"scan_fmt", "ivf", "serde"]
 git_version = ["built/git2"]
 asm = ["nasm-rs", "cc"]
 threading = ["rayon/threads"]
@@ -74,6 +75,7 @@ wasm = ["wasm-bindgen"]
 # - i-spatiotemporal_scales.bin,
 # - i-thresholds.bin: segmentation thresholds.
 dump_lookahead_data = ["byteorder", "image"]
+serde = ["dep:serde"]
 
 [dependencies]
 arg_enum_proc_macro = "0.3.4"
@@ -122,6 +124,7 @@ tracing-subscriber = { version = "0.3.18", optional = true }
 tracing-chrome = { version = "0.7.1", optional = true }
 tracing = { version = "0.1.40", optional = true }
 aligned-vec = "0.6.0"
+serde_json = "1.0.140"
 
 [dependencies.image]
 version = "0.25.0"
