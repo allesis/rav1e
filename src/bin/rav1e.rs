@@ -17,6 +17,7 @@ mod error;
 mod kv;
 mod muxer;
 mod stats;
+mod hash;
 
 use crate::common::*;
 use crate::error::*;
