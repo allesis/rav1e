@@ -120,6 +120,7 @@ mod token_cdfs;
 
 mod api;
 mod frame;
+mod hash;
 mod header;
 
 /// Commonly used types and traits.
