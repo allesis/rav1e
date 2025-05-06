@@ -1,1 +1,1 @@
-mod hashframe;
+pub mod hashframe;

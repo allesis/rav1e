@@ -120,8 +120,8 @@ mod token_cdfs;
 
 mod api;
 mod frame;
-mod hash;
 mod header;
+pub mod hash;
 
 /// Commonly used types and traits.
 pub mod prelude {
@@ -134,6 +134,7 @@ pub mod prelude {
   pub use crate::predict::PredictionMode;
   pub use crate::transform::TxType;
   pub use crate::util::{CastFromPrimitive, Pixel, PixelType};
+  pub use crate::hash::hashframe;
 }
 
 /// Basic data structures
@@ -278,8 +279,8 @@ pub mod version {
   }
 }
 #[cfg(all(
-  any(test, fuzzing),
-  any(feature = "decode_test", feature = "decode_test_dav1d")
+    any(test, fuzzing),
+    any(feature = "decode_test", feature = "decode_test_dav1d")
 ))]
 mod test_encode_decode;
 
