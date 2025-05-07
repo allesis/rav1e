@@ -99,7 +99,6 @@ impl<D: Decoder> Source<D> {
         let mut hasher = DefaultHasher::new();
         let hashframe: hashframe::HashFrame<T> = hashframe::HashFrame::from(frame.clone());
         hashframe.hash(&mut hasher);
-        println!("{}", hasher.finish());
         // End
 
         match video_info.bit_depth {
