@@ -1,5 +1,4 @@
 pub mod hashframe;
-pub mod hashsegment;
 use num_traits::ToPrimitive;
 
 use crate::Pixel;
