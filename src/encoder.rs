@@ -12,14 +12,12 @@ use std::io::Write;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
 use std::{fmt, io, mem};
-use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
 
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
-use bitstream_io::{BigEndian, BitWrite, BitWriter};
+use bitstream_io::{BigEndian, BitWrite2, BitWriter};
+use num_traits::ToPrimitive;
 use rayon::iter::*;
-
 
 use crate::activity::*;
 use crate::api::*;
@@ -37,11 +35,11 @@ use crate::partition::PartitionType::*;
 use crate::partition::RefType::*;
 use crate::partition::*;
 use crate::predict::{
-  luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+  AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
 };
 use crate::quantize::*;
 use crate::rate::{
-  QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE,
+  FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters,
 };
 use crate::rdo::*;
 use crate::segmentation::*;
@@ -70,11 +68,11 @@ pub static TEMPORAL_DELIMITER: [u8; 2] = [0x12, 0x00];
 const MAX_NUM_TEMPORAL_LAYERS: usize = 8;
 const MAX_NUM_SPATIAL_LAYERS: usize = 4;
 const MAX_NUM_OPERATING_POINTS: usize =
-MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS;
+  MAX_NUM_TEMPORAL_LAYERS * MAX_NUM_SPATIAL_LAYERS;
 
 /// Size of blocks for the importance computation, in pixels.
 pub const IMPORTANCE_BLOCK_SIZE: usize =
-1 << (IMPORTANCE_BLOCK_TO_BLOCK_SHIFT + BLOCK_TO_PLANE_SHIFT);
+  1 << (IMPORTANCE_BLOCK_TO_BLOCK_SHIFT + BLOCK_TO_PLANE_SHIFT);
 
 #[derive(Debug, Clone)]
 pub struct ReferenceFrame<T: Pixel> {
@@ -254,30 +252,30 @@ impl Sequence {
       let mut tile_cols_log2 = 0;
       while (tile_rows_log2 < tiling.max_tile_rows_log2)
         || (tile_cols_log2 < tiling.max_tile_cols_log2)
+      {
+        tiling = TilingInfo::from_target_tiles(
+          sb_size_log2,
+          config.width,
+          config.height,
+          frame_rate,
+          tile_cols_log2,
+          tile_rows_log2,
+          config.chroma_sampling == ChromaSampling::Cs422,
+        );
+
+        if tiling.rows * tiling.cols >= config.tiles {
+          break;
+        };
+
+        if ((tiling.tile_height_sb >= tiling.tile_width_sb)
+          && (tiling.tile_rows_log2 < tiling.max_tile_rows_log2))
+          || (tile_cols_log2 >= tiling.max_tile_cols_log2)
         {
-          tiling = TilingInfo::from_target_tiles(
-            sb_size_log2,
-            config.width,
-            config.height,
-            frame_rate,
-            tile_cols_log2,
-            tile_rows_log2,
-            config.chroma_sampling == ChromaSampling::Cs422,
-          );
-
-          if tiling.rows * tiling.cols >= config.tiles {
-            break;
-          };
-
-          if ((tiling.tile_height_sb >= tiling.tile_width_sb)
-            && (tiling.tile_rows_log2 < tiling.max_tile_rows_log2))
-            || (tile_cols_log2 >= tiling.max_tile_cols_log2)
-          {
-            tile_rows_log2 += 1;
-          } else {
-            tile_cols_log2 += 1;
-          }
+          tile_rows_log2 += 1;
+        } else {
+          tile_cols_log2 += 1;
         }
+      }
     }
 
     Sequence {
@@ -316,21 +314,21 @@ impl Sequence {
       enable_cdef: config.speed_settings.cdef && enable_restoration_filters,
       enable_restoration: config.speed_settings.lrf
         && enable_restoration_filters,
-        enable_large_lru: true,
-        enable_delayed_loopfilter_rdo: true,
-        operating_points_cnt_minus_1: 0,
-        operating_point_idc,
-        display_model_info_present_flag: false,
-        decoder_model_info_present_flag: false,
-        level_idx,
-        tier,
-        film_grain_params_present: config
-          .film_grain_params
-          .as_ref()
-          .map(|entries| !entries.is_empty())
-          .unwrap_or(false),
-          timing_info_present: config.enable_timing_info,
-          time_base: config.time_base,
+      enable_large_lru: true,
+      enable_delayed_loopfilter_rdo: true,
+      operating_points_cnt_minus_1: 0,
+      operating_point_idc,
+      display_model_info_present_flag: false,
+      decoder_model_info_present_flag: false,
+      level_idx,
+      tier,
+      film_grain_params_present: config
+        .film_grain_params
+        .as_ref()
+        .map(|entries| !entries.is_empty())
+        .unwrap_or(false),
+      timing_info_present: config.enable_timing_info,
+      time_base: config.time_base,
     }
   }
 
@@ -486,9 +484,9 @@ impl<T: Pixel> FrameState<T> {
       input_hres: Arc::new(hres),
       input_qres: Arc::new(qres),
       rec: Arc::new(Frame::new(
-          luma_width,
-          luma_height,
-          fi.sequence.chroma_sampling,
+        luma_width,
+        luma_height,
+        fi.sequence.chroma_sampling,
       )),
       cdfs: CDFContext::new(0),
       context_update_tile_id: 0,
@@ -578,9 +576,9 @@ impl SegmentationState {
     self.threshold.fill(DistortionScale(0));
     for ((q1, q2), threshold) in
       real_ac_q.iter().skip(1).zip(&real_ac_q).zip(&mut self.threshold)
-      {
-        *threshold = DistortionScale::new(base_ac_q.pow(2), q1 * q2);
-      }
+    {
+      *threshold = DistortionScale::new(base_ac_q.pow(2), q1 * q2);
+    }
   }
 
   #[cfg(feature = "dump_lookahead_data")]
@@ -638,8 +636,8 @@ pub struct FrameInvariants<T: Pixel> {
   pub force_integer_mv: u32,
   pub primary_ref_frame: u32,
   pub refresh_frame_flags: u32, // a bitmask that specifies which
-                                // reference frame slots will be updated with the current frame
-                                // after it is decoded.
+  // reference frame slots will be updated with the current frame
+  // after it is decoded.
   pub allow_intrabc: bool,
   pub use_ref_frame_mvs: bool,
   pub is_filter_switchable: bool,
@@ -729,12 +727,12 @@ impl<T: Pixel> CodedFrameData<T> {
       block_importances: vec![0.; w_in_imp_b * h_in_imp_b].into_boxed_slice(),
       distortion_scales: vec![
         DistortionScale::default();
-      w_in_imp_b * h_in_imp_b
+        w_in_imp_b * h_in_imp_b
       ]
       .into_boxed_slice(),
       activity_scales: vec![
         DistortionScale::default();
-      w_in_imp_b * h_in_imp_b
+        w_in_imp_b * h_in_imp_b
       ]
       .into_boxed_slice(),
       activity_mask: Default::default(),
@@ -881,7 +879,7 @@ impl<T: Pixel> FrameInvariants<T> {
       use_prev_frame_mvs: false,
       partition_range: config.speed_settings.partition.partition_range,
       globalmv_transformation_type: [GlobalMVMode::IDENTITY;
-      INTER_REFS_PER_FRAME],
+        INTER_REFS_PER_FRAME],
       num_tg: 1,
       large_scale_tile: false,
       disable_cdf_update: false,
@@ -939,14 +937,14 @@ impl<T: Pixel> FrameInvariants<T> {
       cpu_feature_level: Default::default(),
       enable_segmentation: config.speed_settings.segmentation
         != SegmentationLevel::Disabled,
-        enable_inter_txfm_split: config
-          .speed_settings
-          .transform
-          .enable_inter_tx_split,
-          t35_metadata: Box::new([]),
-          sequence,
-          config,
-          coded_frame_data: None,
+      enable_inter_txfm_split: config
+        .speed_settings
+        .transform
+        .enable_inter_tx_split,
+      t35_metadata: Box::new([]),
+      sequence,
+      config,
+      coded_frame_data: None,
     }
   }
 
@@ -1015,7 +1013,7 @@ impl<T: Pixel> FrameInvariants<T> {
       false
     } else if fi.frame_type == FrameType::INTER
       && !fi.error_resilient
-        && fi.render_and_frame_size_different
+      && fi.render_and_frame_size_different
     {
       // force frame_size_with_refs() code path if render size != frame size
       true
@@ -1368,8 +1366,8 @@ fn diff<T: Pixel>(
 
   if width == 0
     || width != src2.rect().width
-      || height == 0
-      || src1.rows_iter().len() != src2.rows_iter().len()
+    || height == 0
+    || src1.rows_iter().len() != src2.rows_iter().len()
   {
     debug_assert!(false);
     return;
@@ -1433,238 +1431,249 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   pred_intra_param: IntraParam,
   rdo_type: RDOType,
   need_recon_pixel: bool,
-  ) -> (bool, ScaledDistortion) {
-    let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
-    let tile_rect = ts.tile_rect().decimated(xdec, ydec);
-    let area = Area::BlockRect {
-      bo: tx_bo.0,
-      width: tx_size.width(),
-      height: tx_size.height(),
-    };
+) -> (bool, ScaledDistortion) {
+  let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
+  let tile_rect = ts.tile_rect().decimated(xdec, ydec);
+  let area = Area::BlockRect {
+    bo: tx_bo.0,
+    width: tx_size.width(),
+    height: tx_size.height(),
+  };
 
-    if tx_bo.0.x >= ts.mi_width || tx_bo.0.y >= ts.mi_height {
-      return (false, ScaledDistortion::zero());
-    }
+  if tx_bo.0.x >= ts.mi_width || tx_bo.0.y >= ts.mi_height {
+    return (false, ScaledDistortion::zero());
+  }
 
-    debug_assert!(tx_bo.0.x < ts.mi_width);
-    debug_assert!(tx_bo.0.y < ts.mi_height);
+  debug_assert!(tx_bo.0.x < ts.mi_width);
+  debug_assert!(tx_bo.0.y < ts.mi_height);
 
-    debug_assert!(
-      tx_size.sqr() <= TxSize::TX_32X32 || tx_type == TxType::DCT_DCT
-    );
+  debug_assert!(
+    tx_size.sqr() <= TxSize::TX_32X32 || tx_type == TxType::DCT_DCT
+  );
 
-    let plane_bsize = bsize.subsampled_size(xdec, ydec).unwrap();
+  let plane_bsize = bsize.subsampled_size(xdec, ydec).unwrap();
 
-    debug_assert!(p != 0 || !mode.is_intra() || tx_size.block_size() == plane_bsize || need_recon_pixel,
+  debug_assert!(
+    p != 0
+      || !mode.is_intra()
+      || tx_size.block_size() == plane_bsize
+      || need_recon_pixel,
     "mode.is_intra()={:#?}, plane={:#?}, tx_size.block_size()={:#?}, plane_bsize={:#?}, need_recon_pixel={:#?}",
-    mode.is_intra(), p, tx_size.block_size(), plane_bsize, need_recon_pixel);
+    mode.is_intra(),
+    p,
+    tx_size.block_size(),
+    plane_bsize,
+    need_recon_pixel
+  );
 
-    let ief_params = if mode.is_directional()
-      && fi.sequence.enable_intra_edge_filter
-    {
-      let (plane_xdec, plane_ydec) = if p == 0 { (0, 0) } else { (xdec, ydec) };
-      let above_block_info =
-        ts.above_block_info(tile_partition_bo, plane_xdec, plane_ydec);
-      let left_block_info =
-        ts.left_block_info(tile_partition_bo, plane_xdec, plane_ydec);
-      Some(IntraEdgeFilterParameters::new(p, above_block_info, left_block_info))
-    } else {
-      None
-    };
+  let ief_params = if mode.is_directional()
+    && fi.sequence.enable_intra_edge_filter
+  {
+    let (plane_xdec, plane_ydec) = if p == 0 { (0, 0) } else { (xdec, ydec) };
+    let above_block_info =
+      ts.above_block_info(tile_partition_bo, plane_xdec, plane_ydec);
+    let left_block_info =
+      ts.left_block_info(tile_partition_bo, plane_xdec, plane_ydec);
+    Some(IntraEdgeFilterParameters::new(p, above_block_info, left_block_info))
+  } else {
+    None
+  };
 
-    let frame_bo = ts.to_frame_block_offset(tx_bo);
-    let rec = &mut ts.rec.planes[p];
+  let frame_bo = ts.to_frame_block_offset(tx_bo);
+  let rec = &mut ts.rec.planes[p];
 
-    if mode.is_intra() {
-      let bit_depth = fi.sequence.bit_depth;
-      let mut edge_buf = Aligned::uninit_array();
-      let edge_buf = get_intra_edges(
-        &mut edge_buf,
-        &rec.as_const(),
-        tile_partition_bo,
-        bx,
-        by,
-        bsize,
-        po,
-        tx_size,
-        bit_depth,
-        Some(mode),
-        fi.sequence.enable_intra_edge_filter,
-        pred_intra_param,
-      );
-
-      mode.predict_intra(
-        tile_rect,
-        &mut rec.subregion_mut(area),
-        tx_size,
-        bit_depth,
-        ac,
-        pred_intra_param,
-        ief_params,
-        &edge_buf,
-        fi.cpu_feature_level,
-      );
-    }
-
-    if skip {
-      return (false, ScaledDistortion::zero());
-    }
-
-    let coded_tx_area = av1_get_coded_tx_size(tx_size).area();
-    let mut residual = Aligned::<[MaybeUninit<i16>; 64 * 64]>::uninit_array();
-    let mut coeffs = Aligned::<[MaybeUninit<T::Coeff>; 64 * 64]>::uninit_array();
-    let mut qcoeffs =
-      Aligned::<[MaybeUninit<T::Coeff>; 32 * 32]>::uninit_array();
-    let mut rcoeffs =
-      Aligned::<[MaybeUninit<T::Coeff>; 32 * 32]>::uninit_array();
-    let residual = &mut residual.data[..tx_size.area()];
-    let coeffs = &mut coeffs.data[..tx_size.area()];
-    let qcoeffs = init_slice_repeat_mut(
-      &mut qcoeffs.data[..coded_tx_area],
-      T::Coeff::cast_from(0),
-    );
-    let rcoeffs = &mut rcoeffs.data[..coded_tx_area];
-
-    let (visible_tx_w, visible_tx_h) = clip_visible_bsize(
-      (fi.width + xdec) >> xdec,
-      (fi.height + ydec) >> ydec,
-      tx_size.block_size(),
-      (frame_bo.0.x << MI_SIZE_LOG2) >> xdec,
-      (frame_bo.0.y << MI_SIZE_LOG2) >> ydec,
+  if mode.is_intra() {
+    let bit_depth = fi.sequence.bit_depth;
+    let mut edge_buf = Aligned::uninit_array();
+    let edge_buf = get_intra_edges(
+      &mut edge_buf,
+      &rec.as_const(),
+      tile_partition_bo,
+      bx,
+      by,
+      bsize,
+      po,
+      tx_size,
+      bit_depth,
+      Some(mode),
+      fi.sequence.enable_intra_edge_filter,
+      pred_intra_param,
     );
 
-    if visible_tx_w != 0 && visible_tx_h != 0 {
-      diff(
-        residual,
-        &ts.input_tile.planes[p].subregion(area),
-        &rec.subregion(area),
-      );
-    } else {
-      residual.fill(MaybeUninit::new(0));
-    }
-    // SAFETY: `diff()` inits `tx_size.area()` elements when it matches size of `subregion(area)`
-    let residual = unsafe { slice_assume_init_mut(residual) };
+    mode.predict_intra(
+      tile_rect,
+      &mut rec.subregion_mut(area),
+      tx_size,
+      bit_depth,
+      ac,
+      pred_intra_param,
+      ief_params,
+      &edge_buf,
+      fi.cpu_feature_level,
+    );
+  }
 
-    forward_transform(
+  if skip {
+    return (false, ScaledDistortion::zero());
+  }
+
+  let coded_tx_area = av1_get_coded_tx_size(tx_size).area();
+  let mut residual = Aligned::<[MaybeUninit<i16>; 64 * 64]>::uninit_array();
+  let mut coeffs = Aligned::<[MaybeUninit<T::Coeff>; 64 * 64]>::uninit_array();
+  let mut qcoeffs =
+    Aligned::<[MaybeUninit<T::Coeff>; 32 * 32]>::uninit_array();
+  let mut rcoeffs =
+    Aligned::<[MaybeUninit<T::Coeff>; 32 * 32]>::uninit_array();
+  let residual = &mut residual.data[..tx_size.area()];
+  let coeffs = &mut coeffs.data[..tx_size.area()];
+  let qcoeffs = init_slice_repeat_mut(
+    &mut qcoeffs.data[..coded_tx_area],
+    T::Coeff::cast_from(0),
+  );
+  let rcoeffs = &mut rcoeffs.data[..coded_tx_area];
+
+  let (visible_tx_w, visible_tx_h) = clip_visible_bsize(
+    (fi.width + xdec) >> xdec,
+    (fi.height + ydec) >> ydec,
+    tx_size.block_size(),
+    (frame_bo.0.x << MI_SIZE_LOG2) >> xdec,
+    (frame_bo.0.y << MI_SIZE_LOG2) >> ydec,
+  );
+
+  if visible_tx_w != 0 && visible_tx_h != 0 {
+    diff(
       residual,
-      coeffs,
-      tx_size.width(),
+      &ts.input_tile.planes[p].subregion(area),
+      &rec.subregion(area),
+    );
+  } else {
+    residual.fill(MaybeUninit::new(0));
+  }
+  // SAFETY: `diff()` inits `tx_size.area()` elements when it matches size of `subregion(area)`
+  let residual = unsafe { slice_assume_init_mut(residual) };
+
+  forward_transform(
+    residual,
+    coeffs,
+    tx_size.width(),
+    tx_size,
+    tx_type,
+    fi.sequence.bit_depth,
+    fi.cpu_feature_level,
+  );
+  // SAFETY: forward_transform initialized coeffs
+  let coeffs = unsafe { slice_assume_init_mut(coeffs) };
+
+  let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+  let hash = hashcoeffs::<T>(qcoeffs);
+  let added_qcoeffs =
+    qcoeffs.iter().map(|p| p.to_u8().unwrap_or(0)).collect::<Vec<u8>>();
+  cw.add_coeffs::<T>(hash, added_qcoeffs);
+
+  let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
+    debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
+    debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
+    let frame_clipped_txw: usize =
+      (((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec)
+        .min(tx_size.width());
+    let frame_clipped_txh: usize =
+      (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
+        .min(tx_size.height());
+
+    cw.write_coeffs_lv_map(
+      w,
+      p,
+      tx_bo,
+      qcoeffs,
+      eob,
+      mode,
+      tx_size,
+      tx_type,
+      plane_bsize,
+      xdec,
+      ydec,
+      fi.use_reduced_tx_set,
+      frame_clipped_txw,
+      frame_clipped_txh,
+    )
+  } else {
+    true
+  };
+
+  // Reconstruct
+  dequantize(
+    qidx,
+    qcoeffs,
+    eob,
+    rcoeffs,
+    tx_size,
+    fi.sequence.bit_depth,
+    fi.dc_delta_q[p],
+    fi.ac_delta_q[p],
+    fi.cpu_feature_level,
+  );
+  // SAFETY: dequantize initialized rcoeffs
+  let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+
+  if eob == 0 {
+    // All zero coefficients is a no-op
+  } else if !fi.use_tx_domain_distortion || need_recon_pixel {
+    inverse_transform_add(
+      rcoeffs,
+      &mut rec.subregion_mut(area),
+      eob,
       tx_size,
       tx_type,
       fi.sequence.bit_depth,
       fi.cpu_feature_level,
     );
-    // SAFETY: forward_transform initialized coeffs
-    let coeffs = unsafe { slice_assume_init_mut(coeffs) };
+  }
 
-    let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
-    let hash = hashcoeffs::<T>(qcoeffs);
-    println!("{:?}", hash);
-
-    let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-      debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
-      debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
-      let frame_clipped_txw: usize =
-        (((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec)
-        .min(tx_size.width());
-      let frame_clipped_txh: usize =
-        (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
-        .min(tx_size.height());
-
-      cw.write_coeffs_lv_map(
-        w,
-        p,
-        tx_bo,
-        qcoeffs,
-        eob,
-        mode,
-        tx_size,
-        tx_type,
-        plane_bsize,
-        xdec,
-        ydec,
-        fi.use_reduced_tx_set,
-        frame_clipped_txw,
-        frame_clipped_txh,
-      )
-    } else {
-      true
-    };
-
-    // Reconstruct
-    dequantize(
-      qidx,
-      qcoeffs,
-      eob,
-      rcoeffs,
-      tx_size,
-      fi.sequence.bit_depth,
-      fi.dc_delta_q[p],
-      fi.ac_delta_q[p],
-      fi.cpu_feature_level,
-    );
-    // SAFETY: dequantize initialized rcoeffs
-    let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
-
-    if eob == 0 {
-      // All zero coefficients is a no-op
-    } else if !fi.use_tx_domain_distortion || need_recon_pixel {
-      inverse_transform_add(
-        rcoeffs,
-        &mut rec.subregion_mut(area),
-        eob,
-        tx_size,
-        tx_type,
-        fi.sequence.bit_depth,
-        fi.cpu_feature_level,
-      );
-    }
-
-    let tx_dist =
-      if rdo_type.needs_tx_dist() && visible_tx_w != 0 && visible_tx_h != 0 {
-        // Store tx-domain distortion of this block
-        // rcoeffs above 32 rows/cols aren't held in the array, because they are
-        // always 0. The first 32x32 is stored first in coeffs so we can iterate
-        // over coeffs and rcoeffs for the first 32 rows/cols. For the
-        // coefficients above 32 rows/cols, we iterate over the rest of coeffs
-        // with the assumption that rcoeff coefficients are zero.
-        let mut raw_tx_dist = coeffs
-          .iter()
-          .zip(rcoeffs.iter())
-          .map(|(&a, &b)| {
-            let c = i32::cast_from(a) - i32::cast_from(b);
-            (c * c) as u64
-          })
+  let tx_dist =
+    if rdo_type.needs_tx_dist() && visible_tx_w != 0 && visible_tx_h != 0 {
+      // Store tx-domain distortion of this block
+      // rcoeffs above 32 rows/cols aren't held in the array, because they are
+      // always 0. The first 32x32 is stored first in coeffs so we can iterate
+      // over coeffs and rcoeffs for the first 32 rows/cols. For the
+      // coefficients above 32 rows/cols, we iterate over the rest of coeffs
+      // with the assumption that rcoeff coefficients are zero.
+      let mut raw_tx_dist = coeffs
+        .iter()
+        .zip(rcoeffs.iter())
+        .map(|(&a, &b)| {
+          let c = i32::cast_from(a) - i32::cast_from(b);
+          (c * c) as u64
+        })
         .sum::<u64>()
-          + coeffs[rcoeffs.len()..]
+        + coeffs[rcoeffs.len()..]
           .iter()
           .map(|&a| {
             let c = i32::cast_from(a);
             (c * c) as u64
           })
-        .sum::<u64>();
+          .sum::<u64>();
 
-        let tx_dist_scale_bits = 2 * (3 - get_log_tx_scale(tx_size));
-        let tx_dist_scale_rounding_offset = 1 << (tx_dist_scale_bits - 1);
+      let tx_dist_scale_bits = 2 * (3 - get_log_tx_scale(tx_size));
+      let tx_dist_scale_rounding_offset = 1 << (tx_dist_scale_bits - 1);
 
-        raw_tx_dist =
-          (raw_tx_dist + tx_dist_scale_rounding_offset) >> tx_dist_scale_bits;
+      raw_tx_dist =
+        (raw_tx_dist + tx_dist_scale_rounding_offset) >> tx_dist_scale_bits;
 
-        if rdo_type == RDOType::TxDistEstRate {
-          // look up rate and distortion in table
-          let estimated_rate =
-            estimate_rate(fi.base_q_idx, tx_size, raw_tx_dist);
-          w.add_bits_frac(estimated_rate as u32);
-        }
+      if rdo_type == RDOType::TxDistEstRate {
+        // look up rate and distortion in table
+        let estimated_rate =
+          estimate_rate(fi.base_q_idx, tx_size, raw_tx_dist);
+        w.add_bits_frac(estimated_rate as u32);
+      }
 
-        let bias = distortion_scale(fi, ts.to_frame_block_offset(tx_bo), bsize);
-        RawDistortion::new(raw_tx_dist) * bias * fi.dist_scale[p]
-      } else {
-        ScaledDistortion::zero()
-      };
+      let bias = distortion_scale(fi, ts.to_frame_block_offset(tx_bo), bsize);
+      RawDistortion::new(raw_tx_dist) * bias * fi.dist_scale[p]
+    } else {
+      ScaledDistortion::zero()
+    };
 
-    (has_coeff, tx_dist)
-  }
+  (has_coeff, tx_dist)
+}
 
 /// # Panics
 ///
@@ -1684,13 +1693,13 @@ pub fn motion_compensate<T: Pixel>(
   // instead of each tx-block.
   let num_planes = 1
     + if !luma_only
-    && has_chroma(
-      tile_bo,
-      bsize,
-      u_xdec,
-      u_ydec,
-      fi.sequence.chroma_sampling,
-    ) {
+      && has_chroma(
+        tile_bo,
+        bsize,
+        u_xdec,
+        u_ydec,
+        fi.sequence.chroma_sampling,
+      ) {
       2
     } else {
       0
@@ -1906,7 +1915,7 @@ pub fn encode_block_pre_cdef<T: Pixel, W: Writer>(
   cw.bc.blocks.set_skip(tile_bo, bsize, skip);
   if ts.segmentation.enabled
     && ts.segmentation.update_map
-      && ts.segmentation.preskip
+    && ts.segmentation.preskip
   {
     cw.write_segmentation(
       w,
@@ -1919,7 +1928,7 @@ pub fn encode_block_pre_cdef<T: Pixel, W: Writer>(
   cw.write_skip(w, tile_bo, skip);
   if ts.segmentation.enabled
     && ts.segmentation.update_map
-      && !ts.segmentation.preskip
+    && !ts.segmentation.preskip
   {
     cw.write_segmentation(
       w,
@@ -1980,7 +1989,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
   //write_q_deltas();
   if cw.bc.code_deltas
     && ts.deblock.block_deltas_enabled
-      && (bsize < sb_size || !skip)
+    && (bsize < sb_size || !skip)
   {
     cw.write_block_deblock_deltas(
       w,
@@ -2041,7 +2050,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
 
       if luma_mode == PredictionMode::NEWMV
         || luma_mode == PredictionMode::NEW_NEWMV
-          || luma_mode == PredictionMode::NEW_NEARESTMV
+        || luma_mode == PredictionMode::NEW_NEARESTMV
       {
         cw.write_mv(w, mvs[0], ref_mvs[0], mv_precision);
       }
@@ -2109,8 +2118,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
 
     if fi.allow_screen_content_tools > 0
       && bsize >= BlockSize::BLOCK_8X8
-        && bsize.width() <= 64
-        && bsize.height() <= 64
+      && bsize.width() <= 64
+      && bsize.height() <= 64
     {
       cw.write_use_palette_mode(
         w,
@@ -2127,8 +2136,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
 
     if fi.sequence.enable_filter_intra
       && luma_mode == PredictionMode::DC_PRED
-        && bsize.width() <= 32
-        && bsize.height() <= 32
+      && bsize.width() <= 32
+      && bsize.height() <= 32
     {
       cw.write_use_filter_intra(w, false, bsize); // turn off FILTER_INTRA
     }
@@ -2310,24 +2319,24 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
         IntraParam::AngleDelta(angle_delta.y),
         rdo_type,
         need_recon_pixel,
-        );
-        partition_has_coeff |= has_coeff;
-        tx_dist += dist;
+      );
+      partition_has_coeff |= has_coeff;
+      tx_dist += dist;
     }
   }
 
   if !do_chroma
     || luma_only
-      || fi.sequence.chroma_sampling == ChromaSampling::Cs400
+    || fi.sequence.chroma_sampling == ChromaSampling::Cs400
   {
     return (partition_has_coeff, tx_dist);
   };
   debug_assert!(has_chroma(
-      tile_bo,
-      bsize,
-      xdec,
-      ydec,
-      fi.sequence.chroma_sampling
+    tile_bo,
+    bsize,
+    xdec,
+    ydec,
+    fi.sequence.chroma_sampling
   ));
 
   let uv_tx_size = bsize.largest_chroma_tx_size(xdec, ydec);
@@ -2370,8 +2379,8 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
         let tx_bo = TileBlockOffset(BlockOffset {
           x: tile_bo.0.x + ((bx * uv_tx_size.width_mi()) << xdec)
             - ((bw * tx_size.width_mi() == 1) as usize) * xdec,
-            y: tile_bo.0.y + ((by * uv_tx_size.height_mi()) << ydec)
-              - ((bh * tx_size.height_mi() == 1) as usize) * ydec,
+          y: tile_bo.0.y + ((by * uv_tx_size.height_mi()) << ydec)
+            - ((bh * tx_size.height_mi() == 1) as usize) * ydec,
         });
 
         let mut po = tile_bo.plane_offset(&ts.input.planes[p].cfg);
@@ -2402,7 +2411,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
           },
           rdo_type,
           need_recon_pixel,
-          );
+        );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
       }
@@ -2475,7 +2484,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
         IntraParam::AngleDelta(angle_delta_y),
         rdo_type,
         need_recon_pixel,
-        );
+      );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
     }
@@ -2483,16 +2492,16 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
 
   if !has_chroma(tile_bo, bsize, xdec, ydec, fi.sequence.chroma_sampling)
     || luma_only
-      || fi.sequence.chroma_sampling == ChromaSampling::Cs400
+    || fi.sequence.chroma_sampling == ChromaSampling::Cs400
   {
     return (partition_has_coeff, tx_dist);
   };
   debug_assert!(has_chroma(
-      tile_bo,
-      bsize,
-      xdec,
-      ydec,
-      fi.sequence.chroma_sampling
+    tile_bo,
+    bsize,
+    xdec,
+    ydec,
+    fi.sequence.chroma_sampling
   ));
 
   let max_tx_size = max_txsize_rect_lookup[bsize as usize];
@@ -2531,8 +2540,8 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
         let tx_bo = TileBlockOffset(BlockOffset {
           x: tile_bo.0.x + ((bx * uv_tx_size.width_mi()) << xdec)
             - (max_tx_size.width_mi() == 1) as usize * xdec,
-            y: tile_bo.0.y + ((by * uv_tx_size.height_mi()) << ydec)
-              - (max_tx_size.height_mi() == 1) as usize * ydec,
+          y: tile_bo.0.y + ((by * uv_tx_size.height_mi()) << ydec)
+            - (max_tx_size.height_mi() == 1) as usize * ydec,
         });
 
         let mut po = tile_bo.plane_offset(&ts.input.planes[p].cfg);
@@ -2559,7 +2568,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
           IntraParam::AngleDelta(angle_delta_y),
           rdo_type,
           need_recon_pixel,
-          );
+        );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
       }
@@ -2633,7 +2642,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
     rdo_type,
     true,
     enc_stats,
-    );
+  );
 }
 
 #[profiling::function]
@@ -2742,8 +2751,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
     let mut partition_types = ArrayVec::<PartitionType, 3>::new();
     if bsize
       <= fi.config.speed_settings.partition.non_square_partition_max_threshold
-        || is_straddle_x
-        || is_straddle_y
+      || is_straddle_x
+      || is_straddle_y
     {
       if has_cols {
         partition_types.push(PartitionType::PARTITION_HORZ);
@@ -2827,7 +2836,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           rd_cost += cost;
           if !must_split
             && fi.enable_early_exit
-              && (rd_cost >= best_rd || rd_cost >= ref_rd_cost)
+            && (rd_cost >= best_rd || rd_cost >= ref_rd_cost)
           {
             assert!(cost != f64::MAX);
             early_exit = true;
@@ -2901,8 +2910,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
 
   if is_square
     && bsize >= BlockSize::BLOCK_8X8
-      && (bsize == BlockSize::BLOCK_8X8
-        || best_partition != PartitionType::PARTITION_SPLIT)
+    && (bsize == BlockSize::BLOCK_8X8
+      || best_partition != PartitionType::PARTITION_SPLIT)
   {
     cw.bc.update_partition_context(
       tile_bo,
@@ -3074,9 +3083,9 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
 
           if mode_luma != PredictionMode::NEAREST_NEARESTMV
             && mvs[0].row == 0
-              && mvs[0].col == 0
-              && mvs[1].row == 0
-              && mvs[1].col == 0
+            && mvs[0].col == 0
+            && mvs[1].row == 0
+            && mvs[1].col == 0
           {
             mode_luma = PredictionMode::GLOBAL_GLOBALMV;
           }
@@ -3085,10 +3094,10 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
           mode_luma = PredictionMode::NEWMV;
           for (c, m) in mv_stack.iter().take(4).zip(
             [
-            PredictionMode::NEARESTMV,
-            PredictionMode::NEAR0MV,
-            PredictionMode::NEAR1MV,
-            PredictionMode::NEAR2MV,
+              PredictionMode::NEARESTMV,
+              PredictionMode::NEAR0MV,
+              PredictionMode::NEAR1MV,
+              PredictionMode::NEAR2MV,
             ]
             .iter(),
           ) {
@@ -3098,7 +3107,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
           }
           if mode_luma == PredictionMode::NEWMV
             && mvs[0].row == 0
-              && mvs[0].col == 0
+            && mvs[0].col == 0
           {
             mode_luma = if mv_stack.is_empty() {
               PredictionMode::NEARESTMV
@@ -3151,7 +3160,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         RDOType::PixelDistRealRate,
         true,
         Some(enc_stats),
-        );
+      );
     }
     PARTITION_SPLIT | PARTITION_HORZ | PARTITION_VERT => {
       if !rdo_output.part_modes.is_empty() {
@@ -3219,8 +3228,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
 
   if is_square
     && bsize >= BlockSize::BLOCK_8X8
-      && (bsize == BlockSize::BLOCK_8X8
-        || partition != PartitionType::PARTITION_SPLIT)
+    && (bsize == BlockSize::BLOCK_8X8
+      || partition != PartitionType::PARTITION_SPLIT)
   {
     cw.bc.update_partition_context(tile_bo, subsize, bsize);
   }
@@ -3253,18 +3262,18 @@ fn encode_tile_group<T: Pixel>(
   let mut cdfs = vec![initial_cdf; ti.tile_count()];
 
   let (raw_tiles, stats): (Vec<_>, Vec<_>) = ti
-                           .tile_iter_mut(fs, &mut blocks)
-                           .zip(cdfs.iter_mut())
-                           .collect::<Vec<_>>()
-                           .into_par_iter()
-                           .map(|(mut ctx, cdf)| {
-                             encode_tile(fi, &mut ctx.ts, cdf, &mut ctx.tb, inter_cfg)
-                           })
-  .unzip();
+    .tile_iter_mut(fs, &mut blocks)
+    .zip(cdfs.iter_mut())
+    .collect::<Vec<_>>()
+    .into_par_iter()
+    .map(|(mut ctx, cdf)| {
+      encode_tile(fi, &mut ctx.ts, cdf, &mut ctx.tb, inter_cfg)
+    })
+    .unzip();
 
   for tile_stats in stats {
     fs.enc_stats += &tile_stats;
-    }
+  }
 
   /* Frame deblocking operates over a single large tile wrapping the
    * frame rather than the frame itself so that deblocking is
@@ -3516,7 +3525,7 @@ fn encode_tile<'a, T: Pixel>(
       // Encode SuperBlock
       if fi.config.speed_settings.partition.encode_bottomup
         || is_straddle_sbx
-          || is_straddle_sby
+        || is_straddle_sby
       {
         encode_partition_bottomup(
           fi,
@@ -3747,7 +3756,7 @@ pub fn encode_show_existing_frame<T: Pixel>(
       if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
     for p in 0..planes {
       fs_rec.planes[p].data.copy_from_slice(&rec.frame.planes[p].data);
-      }
+    }
   }
   packet
 }
