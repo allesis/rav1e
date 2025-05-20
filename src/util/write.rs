@@ -6,8 +6,8 @@ use std::fs::File;
 /// Allows writing a serializable object to a file
 ///
 /// E.g. to_file(serializable_data, filename_str).unwrap();
-pub fn to_file<T: Serialize>(
-  data: T, filename: &str,
+pub fn to_file(
+  data: impl Serialize, filename: &str,
 ) -> Result<(), std::io::Error> {
   let mut file = match File::create(filename) {
     Ok(file) => file,
