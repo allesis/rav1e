@@ -1556,10 +1556,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
   let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
-  let hash = hashcoeffs::<T>(qcoeffs);
-  let added_qcoeffs =
-    qcoeffs.iter().map(|p| p.to_u8().unwrap_or(0)).collect::<Vec<u8>>();
-  cw.add_coeffs::<T>(hash, added_qcoeffs);
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
@@ -2201,7 +2197,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
     }
   }
 
-  let res = if is_inter {
+  if is_inter {
     motion_compensate(
       fi, ts, cw, luma_mode, ref_frames, mvs, bsize, tile_bo, false,
     );
@@ -2240,9 +2236,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       rdo_type,
       need_recon_pixel,
     )
-  };
-  cw.write_out("hash.map");
-  res
+  }
 }
 
 /// # Panics
