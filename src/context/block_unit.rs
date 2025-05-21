@@ -1780,6 +1780,82 @@ impl ContextWriter<'_> {
     symbol_with_update!(self, w, is_inter as u32, cdf);
   }
 
+  pub fn write_hash_lv_map<T: Coefficient, W: Writer>(
+    &mut self, w: &mut W, plane: usize, bo: TileBlockOffset, coeffs_in: &[T],
+    eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
+    plane_bsize: BlockSize, xdec: usize, ydec: usize,
+    use_reduced_tx_set: bool, frame_clipped_txw: usize,
+    frame_clipped_txh: usize, hash: u64,
+  ) -> bool {
+    debug_assert!(frame_clipped_txw != 0);
+    debug_assert!(frame_clipped_txh != 0);
+
+    let is_inter = pred_mode >= PredictionMode::NEARESTMV;
+
+    // Note: Both intra and inter mode uses inter scan order. Surprised?
+    let scan: &[u16] = &av1_scan_orders[tx_size as usize][tx_type as usize]
+      .scan[..usize::from(eob)];
+    let height = av1_get_coded_tx_size(tx_size).height();
+
+    // Create a slice with coeffs in scan order
+    let mut coeffs_storage: Aligned<ArrayVec<T, { 32 * 32 }>> =
+      Aligned::new(ArrayVec::new());
+    let coeffs = &mut coeffs_storage.data;
+    coeffs.extend(scan.iter().map(|&scan_idx| coeffs_in[scan_idx as usize]));
+
+    let cul_level: u32 = coeffs.iter().map(|c| u32::cast_from(c.abs())).sum();
+
+    let txs_ctx = Self::get_txsize_entropy_ctx(tx_size);
+    let txb_ctx = self.bc.get_txb_ctx(
+      plane_bsize,
+      tx_size,
+      plane,
+      bo,
+      xdec,
+      ydec,
+      frame_clipped_txw,
+      frame_clipped_txh,
+    );
+
+    {
+      let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
+      symbol_with_update!(self, w, (eob == 0) as u32, cdf);
+    }
+
+    if eob == 0 {
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, 0);
+      return false;
+    }
+
+    let mut levels_buf = [0u8; TX_PAD_2D];
+    let levels: &mut [u8] =
+      &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
+
+    self.txb_init_levels(coeffs_in, height, levels, height + TX_PAD_HOR);
+
+    let tx_class = tx_type_to_class[tx_type as usize];
+    let plane_type = usize::from(plane != 0);
+
+    // Signal tx_type for luma plane only
+    if plane == 0 {
+      self.write_tx_type(
+        w,
+        tx_size,
+        tx_type,
+        pred_mode,
+        is_inter,
+        use_reduced_tx_set,
+      );
+    }
+
+    self.encode_eob(eob, tx_size, tx_class, txs_ctx, plane_type, w);
+    self.encode_hash(hash, w);
+    let cul_level =
+      self.encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level);
+    self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
+    true
+  }
+
   pub fn write_coeffs_lv_map<T: Coefficient, W: Writer>(
     &mut self, w: &mut W, plane: usize, bo: TileBlockOffset, coeffs_in: &[T],
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
@@ -1911,6 +1987,13 @@ impl ContextWriter<'_> {
         w.bit(bit as u16);
       }
     }
+  }
+
+  fn encode_hash<W: Writer>(&mut self, hash: u64, w: &mut W) {
+    let low: u32 = (hash & 0xFFFF_FFFF) as u32;
+    let high: u32 = (hash >> 32) as u32;
+    w.literal(32, high);
+    w.literal(32, low);
   }
 
   fn encode_coeffs<T: Coefficient, W: Writer>(

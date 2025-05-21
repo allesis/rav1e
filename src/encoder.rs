@@ -1572,37 +1572,69 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
         .min(tx_size.height());
 
-    cw.write_coeffs_lv_map(
-      w,
-      p,
-      tx_bo,
-      qcoeffs,
-      eob,
-      mode,
-      tx_size,
-      tx_type,
-      plane_bsize,
-      xdec,
-      ydec,
-      fi.use_reduced_tx_set,
-      frame_clipped_txw,
-      frame_clipped_txh,
-    )
+    let hash = hashcoeffs::<T>(qcoeffs);
+    match hashmap {
+      Some(hashmap) => {
+        let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
+        match hashmap_guard.insert(
+          hash,
+          qcoeffs.iter().map(|p| p.clone().to_u8().unwrap_or(0)).collect(),
+        ) {
+          Some(_) => cw.write_hash_lv_map(
+            w,
+            p,
+            tx_bo,
+            qcoeffs,
+            eob,
+            mode,
+            tx_size,
+            tx_type,
+            plane_bsize,
+            xdec,
+            ydec,
+            fi.use_reduced_tx_set,
+            frame_clipped_txw,
+            frame_clipped_txh,
+            hash,
+          ),
+          None => cw.write_coeffs_lv_map(
+            w,
+            p,
+            tx_bo,
+            qcoeffs,
+            eob,
+            mode,
+            tx_size,
+            tx_type,
+            plane_bsize,
+            xdec,
+            ydec,
+            fi.use_reduced_tx_set,
+            frame_clipped_txw,
+            frame_clipped_txh,
+          ),
+        }
+      }
+      None => cw.write_coeffs_lv_map(
+        w,
+        p,
+        tx_bo,
+        qcoeffs,
+        eob,
+        mode,
+        tx_size,
+        tx_type,
+        plane_bsize,
+        xdec,
+        ydec,
+        fi.use_reduced_tx_set,
+        frame_clipped_txw,
+        frame_clipped_txh,
+      ),
+    }
   } else {
     true
   };
-
-  let hash = hashcoeffs::<T>(qcoeffs);
-  match hashmap {
-    Some(hashmap) => {
-      let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-      hashmap_guard.insert(
-        hash,
-        qcoeffs.iter().map(|p| p.clone().to_u8().unwrap_or(0)).collect(),
-      );
-    }
-    None => (),
-  }
 
   // Reconstruct
   dequantize(
