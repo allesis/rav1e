@@ -2210,7 +2210,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
     }
   }
 
-  if is_inter {
+  let res = if is_inter {
     motion_compensate(
       fi, ts, cw, luma_mode, ref_frames, mvs, bsize, tile_bo, false,
     );
@@ -2249,7 +2249,9 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       rdo_type,
       need_recon_pixel,
     )
-  }
+  };
+  cw.write_out("hash.map");
+  res
 }
 
 /// # Panics

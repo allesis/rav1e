@@ -8,7 +8,6 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use super::*;
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, marker::PhantomData};
 
 use crate::util::to_file;
@@ -723,8 +722,11 @@ impl<'a> ContextWriter<'a> {
     cw
   }
 
-  pub fn write_out<T: Serialize + Deserialize<'a>>(&self, str: &str) {
-    to_file(self.hashmap.clone(), str);
+  pub fn write_out(&self, str: &str) {
+    match to_file(self.hashmap.clone(), str) {
+      Err(err) => panic!("{:?}", err),
+      Ok(()) => (),
+    }
   }
 
   pub fn add_coeffs<T: Pixel>(&mut self, hash: u64, coeffs: Vec<u8>) {
