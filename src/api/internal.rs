@@ -29,11 +29,11 @@ use crate::tiling::Area;
 use crate::util::Pixel;
 use arrayvec::ArrayVec;
 use std::cmp;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// The set of options that controls frame re-ordering and reference picture
 ///  selection.
@@ -259,9 +259,13 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
+  hashmap: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
 }
 
 impl<T: Pixel> ContextInner<T> {
+  pub fn print_hashmap(&self) {
+    println!("{:?}", self.hashmap);
+  }
   pub fn new(enc: &EncoderConfig) -> Self {
     // initialize with temporal delimiter
     let packet_data = TEMPORAL_DELIMITER.to_vec();
@@ -312,6 +316,7 @@ impl<T: Pixel> ContextInner<T> {
       next_lookahead_output_frameno: 0,
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
+      hashmap: Arc::new(Mutex::new(HashMap::new())),
     }
   }
 
@@ -1374,7 +1379,8 @@ impl<T: Pixel> ContextInner<T> {
 
     if self.rc_state.needs_trial_encode(fti) {
       let mut trial_fs = frame_data.fs.clone();
-      let data = encode_frame(&frame_data.fi, &mut trial_fs, &self.inter_cfg);
+      let data =
+        encode_frame(&frame_data.fi, &mut trial_fs, &self.inter_cfg, None);
       self.rc_state.update_state(
         (data.len() * 8) as i64,
         fti,
@@ -1393,8 +1399,12 @@ impl<T: Pixel> ContextInner<T> {
       frame_data.fi.set_quantizers(&qps);
     }
 
-    let data =
-      encode_frame(&frame_data.fi, &mut frame_data.fs, &self.inter_cfg);
+    let data = encode_frame(
+      &frame_data.fi,
+      &mut frame_data.fs,
+      &self.inter_cfg,
+      Some(self.hashmap.clone()),
+    );
     #[cfg(feature = "dump_lookahead_data")]
     {
       let input_frameno = frame_data.fi.input_frameno;

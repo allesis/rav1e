@@ -902,6 +902,7 @@ fn luma_chroma_mode_rdo<T: Pixel>(
           rdo_type,
           need_recon_pixel,
           None,
+          None,
         );
 
         let rate = wr.tell_frac() - tell;
@@ -1035,6 +1036,7 @@ pub fn rdo_mode_decision<T: Pixel>(
       true,
       rdo_type,
       true,
+      None,
     );
     cw.rollback(&cw_checkpoint);
     if fi.sequence.chroma_sampling != ChromaSampling::Cs400 {
@@ -1071,6 +1073,7 @@ pub fn rdo_mode_decision<T: Pixel>(
           &[],
           rdo_type,
           true, // For CFL, luma should be always reconstructed.
+          None,
           None,
         );
 
@@ -1759,6 +1762,7 @@ pub fn rdo_tx_type_decision<T: Pixel>(
         true,
         rdo_type,
         need_recon_pixel,
+        None,
       )
     } else {
       write_tx_blocks(
@@ -1778,6 +1782,7 @@ pub fn rdo_tx_type_decision<T: Pixel>(
         true,
         rdo_type,
         need_recon_pixel,
+        None,
       )
     };
 
@@ -1927,6 +1932,7 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
         offset,
         &mode_decision,
         rdo_type,
+        None,
         None,
       );
       child_modes.push(mode_decision);
