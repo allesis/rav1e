@@ -1938,7 +1938,6 @@ impl ContextWriter<'_> {
     for (c, ((pos, coeff_ctx), v)) in
       scan_with_ctx.zip(coeffs.iter().copied()).enumerate().rev()
     {
-      println!("{:?}", c);
       let pos = pos as usize;
       let coeff_ctx = coeff_ctx as usize;
       let level = v.abs();

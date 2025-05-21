@@ -7,10 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use std::collections::VecDeque;
+use std::cell::RefCell;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::mem::MaybeUninit;
-use std::sync::Arc;
+use std::ops::DerefMut;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::{fmt, io, mem};
 
 use arg_enum_proc_macro::ArgEnum;
@@ -1431,6 +1434,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   pred_intra_param: IntraParam,
   rdo_type: RDOType,
   need_recon_pixel: bool,
+  // Optional Rc<HashMap> to build dict around
+  mut hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
   let tile_rect = ts.tile_rect().decimated(xdec, ydec);
@@ -1586,6 +1591,18 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   } else {
     true
   };
+
+  let hash = hashcoeffs::<T>(qcoeffs);
+  match hashmap {
+    Some(hashmap) => {
+      let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
+      hashmap_guard.insert(
+        hash,
+        qcoeffs.iter().map(|p| p.clone().to_u8().unwrap_or(0)).collect(),
+      );
+    }
+    None => (),
+  }
 
   // Reconstruct
   dequantize(
@@ -1945,6 +1962,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
   tx_type: TxType, mode_context: usize, mv_stack: &[CandidateMV],
   rdo_type: RDOType, need_recon_pixel: bool,
   enc_stats: Option<&mut EncoderStats>,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> (bool, ScaledDistortion) {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -2216,6 +2234,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       false,
       rdo_type,
       need_recon_pixel,
+      hashmap.clone(),
     )
   } else {
     write_tx_blocks(
@@ -2235,6 +2254,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       false,
       rdo_type,
       need_recon_pixel,
+      hashmap,
     )
   }
 }
@@ -2249,6 +2269,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
   tile_bo: TileBlockOffset, bsize: BlockSize, tx_size: TxSize,
   tx_type: TxType, skip: bool, cfl: CFLParams, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> (bool, ScaledDistortion) {
   let bw = bsize.width_mi() / tx_size.width_mi();
   let bh = bsize.height_mi() / tx_size.height_mi();
@@ -2306,6 +2327,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
         IntraParam::AngleDelta(angle_delta.y),
         rdo_type,
         need_recon_pixel,
+        hashmap.clone(),
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2398,6 +2420,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
           },
           rdo_type,
           need_recon_pixel,
+          hashmap.clone(),
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
@@ -2414,6 +2437,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
   angle_delta_y: i8, tile_bo: TileBlockOffset, bsize: BlockSize,
   tx_size: TxSize, tx_type: TxType, skip: bool, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> (bool, ScaledDistortion) {
   if skip {
     return (false, ScaledDistortion::zero());
@@ -2471,6 +2495,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
         IntraParam::AngleDelta(angle_delta_y),
         rdo_type,
         need_recon_pixel,
+        hashmap.clone(),
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2555,6 +2580,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
           IntraParam::AngleDelta(angle_delta_y),
           rdo_type,
           need_recon_pixel,
+          hashmap.clone(),
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
@@ -2572,6 +2598,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   mode_decision: &PartitionParameters, rdo_type: RDOType,
   enc_stats: Option<&mut EncoderStats>,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) {
   let (mode_luma, mode_chroma) =
     (mode_decision.pred_mode_luma, mode_decision.pred_mode_chroma);
@@ -2629,6 +2656,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
     rdo_type,
     true,
     enc_stats,
+    hashmap.clone(),
   );
 }
 
@@ -2638,6 +2666,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
   cw: &mut ContextWriter, w_pre_cdef: &mut W, w_post_cdef: &mut W,
   bsize: BlockSize, tile_bo: TileBlockOffset, ref_rd_cost: f64,
   inter_cfg: &InterConfig, enc_stats: &mut EncoderStats,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> PartitionGroupParameters {
   let rdo_type = RDOType::PixelDistRealRate;
   let mut rd_cost = f64::MAX;
@@ -2725,6 +2754,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
         &mode_decision,
         rdo_type,
         Some(enc_stats),
+        hashmap.clone(),
       );
     }
   } // if !must_split
@@ -2815,6 +2845,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           best_rd,
           inter_cfg,
           enc_stats,
+          hashmap.clone(),
         );
         let cost = child_rdo_output.rd_cost;
         assert!(cost >= 0.0);
@@ -2888,6 +2919,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           &mode,
           rdo_type,
           Some(enc_stats),
+          hashmap.clone(),
         );
       }
     }
@@ -2922,6 +2954,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   block_output: &Option<PartitionGroupParameters>, inter_cfg: &InterConfig,
   enc_stats: &mut EncoderStats,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) {
   if tile_bo.0.x >= ts.mi_width || tile_bo.0.y >= ts.mi_height {
     return;
@@ -3147,6 +3180,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         RDOType::PixelDistRealRate,
         true,
         Some(enc_stats),
+        hashmap.clone(),
       );
     }
     PARTITION_SPLIT | PARTITION_HORZ | PARTITION_VERT => {
@@ -3171,6 +3205,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             }),
             inter_cfg,
             enc_stats,
+            hashmap.clone(),
           );
         }
       } else {
@@ -3206,6 +3241,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             &None,
             inter_cfg,
             enc_stats,
+            hashmap.clone(),
           );
         });
       }
@@ -3238,6 +3274,7 @@ fn get_initial_cdfcontext<T: Pixel>(fi: &FrameInvariants<T>) -> CDFContext {
 #[profiling::function]
 fn encode_tile_group<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> Vec<u8> {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -3254,7 +3291,14 @@ fn encode_tile_group<T: Pixel>(
     .collect::<Vec<_>>()
     .into_par_iter()
     .map(|(mut ctx, cdf)| {
-      encode_tile(fi, &mut ctx.ts, cdf, &mut ctx.tb, inter_cfg)
+      encode_tile(
+        fi,
+        &mut ctx.ts,
+        cdf,
+        &mut ctx.tb,
+        inter_cfg,
+        hashmap.clone(),
+      )
     })
     .unzip();
 
@@ -3470,7 +3514,7 @@ fn check_lf_queue<T: Pixel>(
 fn encode_tile<'a, T: Pixel>(
   fi: &FrameInvariants<T>, ts: &'a mut TileStateMut<'_, T>,
   fc: &'a mut CDFContext, blocks: &'a mut TileBlocksMut<'a>,
-  inter_cfg: &InterConfig,
+  inter_cfg: &InterConfig, hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> (Vec<u8>, EncoderStats) {
   let mut enc_stats = EncoderStats::default();
   let mut w = WriterEncoder::new();
@@ -3525,6 +3569,7 @@ fn encode_tile<'a, T: Pixel>(
           f64::MAX,
           inter_cfg,
           &mut enc_stats,
+          hashmap.clone(),
         );
       } else {
         encode_partition_topdown(
@@ -3538,6 +3583,7 @@ fn encode_tile<'a, T: Pixel>(
           &None,
           inter_cfg,
           &mut enc_stats,
+          hashmap.clone(),
         );
       }
 
@@ -3769,6 +3815,7 @@ fn get_initial_segmentation<T: Pixel>(
 #[profiling::function]
 pub fn encode_frame<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> Vec<u8> {
   debug_assert!(!fi.is_show_existing_frame());
   let obu_extension = 0;
@@ -3779,7 +3826,7 @@ pub fn encode_frame<T: Pixel>(
     fs.segmentation = get_initial_segmentation(fi);
     segmentation_optimize(fi, fs);
   }
-  let tile_group = encode_tile_group(fi, fs, inter_cfg);
+  let tile_group = encode_tile_group(fi, fs, inter_cfg, hashmap.clone());
 
   if fi.frame_type == FrameType::KEY {
     write_key_frame_obus(&mut packet, fi, obu_extension).unwrap();
