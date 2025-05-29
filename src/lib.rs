@@ -35,9 +35,8 @@
 //! [`Context::receive_packet`]: struct.Context.html#method.receive_packet
 
 #![allow(missing_abi)]
+#![allow(unused_unsafe)]
 
-#[macro_use]
-extern crate log; // Override assert! and assert_eq! in tests
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;
@@ -106,12 +105,7 @@ mod mc;
 mod me;
 mod rate;
 mod recon_intra;
-mod sad_plane;
 mod scan_order;
-#[cfg(feature = "scenechange")]
-pub mod scenechange;
-#[cfg(not(feature = "scenechange"))]
-mod scenechange;
 mod segmentation;
 mod stats;
 #[doc(hidden)]
