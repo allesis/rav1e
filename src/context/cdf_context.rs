@@ -8,9 +8,7 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use super::*;
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
-
-use crate::util::to_file;
+use std::marker::PhantomData;
 
 pub const CDF_LEN_MAX: usize = 16;
 
@@ -694,7 +692,6 @@ pub struct ContextWriter<'a> {
   pub bc: BlockContext<'a>,
   pub fc: &'a mut CDFContext,
   pub fc_log: CDFContextLog,
-  pub hashmap: HashMap<u64, Box<Vec<u8>>>,
   #[cfg(feature = "desync_finder")]
   pub fc_map: Option<FieldMap>, // For debugging purposes
 }
@@ -708,7 +705,6 @@ impl<'a> ContextWriter<'a> {
       bc,
       fc,
       fc_log,
-      hashmap: HashMap::new(),
       #[cfg(feature = "desync_finder")]
       fc_map: Default::default(),
     };
@@ -720,17 +716,6 @@ impl<'a> ContextWriter<'a> {
     }
 
     cw
-  }
-
-  pub fn write_out(&self, str: &str) {
-    match to_file(self.hashmap.clone(), str) {
-      Err(err) => panic!("{:?}", err),
-      Ok(()) => (),
-    }
-  }
-
-  pub fn add_coeffs<T: Pixel>(&mut self, hash: u64, coeffs: Vec<u8>) {
-    _ = self.hashmap.insert(hash, Box::new(coeffs));
   }
 
   pub const fn cdf_element_prob(cdf: &[u16], element: usize) -> u16 {

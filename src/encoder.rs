@@ -7,12 +7,9 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::mem::MaybeUninit;
-use std::ops::DerefMut;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::{fmt, io, mem};
 
@@ -1435,7 +1432,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   rdo_type: RDOType,
   need_recon_pixel: bool,
   // Optional Rc<HashMap> to build dict around
-  mut hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
+  hashmap: Option<Arc<Mutex<HashMap<u64, Vec<u8>>>>>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
   let tile_rect = ts.tile_rect().decimated(xdec, ydec);
