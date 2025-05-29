@@ -8,7 +8,7 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use super::*;
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, rc::Rc};
+use std::marker::PhantomData;
 
 pub const CDF_LEN_MAX: usize = 16;
 
