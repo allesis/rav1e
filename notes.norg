@@ -1,0 +1,70 @@
+@document.meta
+title: notes
+description:
+authors: charlie
+categories:
+created: 2025-05-14T16:34:32-0800
+updated: 2025-05-14T16:40:15-0800
+version: 1.1.1
+@end
+
+* Packet Struct
+  @code rust
+  /// Represents a packet.
+  ///
+  /// A packet contains one shown frame together with zero or more additional
+  /// frames.
+  #[derive(Debug, Serialize, Deserialize)]
+  pub struct Packet<T: Pixel> {
+    /// The packet data.
+    pub data: Vec<u8>,
+    /// The reconstruction of the shown frame.
+    #[cfg_attr(feature = "serialize", serde(skip))]
+    pub rec: Option<Arc<Frame<T>>>,
+    /// The Reference Frame
+    #[cfg_attr(feature = "serialize", serde(skip))]
+    pub source: Option<Arc<Frame<T>>>,
+    /// The number of the input frame corresponding to the one shown frame in the
+    /// TU stored in this packet. Since AV1 does not explicitly reorder frames,
+    /// these will increase sequentially.
+    // TODO: When we want to add VFR support, we will need a more explicit time
+    // stamp here.
+    pub input_frameno: u64,
+    /// Type of the shown frame.
+    pub frame_type: FrameType,
+    /// QP selected for the frame.
+    pub qp: u8,
+    /// Block-level encoding stats for the frame
+    pub enc_stats: EncoderStats,
+    /// Optional user-provided opaque data
+    #[cfg_attr(feature = "serialize", serde(skip))]
+    pub opaque: Option<Opaque>,
+  }
+  @end
+* Packet C Struct
+  @code rust
+  /// Encoded Packet
+  ///
+  /// The encoded packets are retrieved using `rav1e_receive_packet()`.
+  ///
+  /// Use `rav1e_packet_unref()` to free its memory.
+  #[repr(C)]
+  pub struct Packet {
+    /// Encoded data buffer
+    pub data: *const u8,
+    /// Encoded data buffer size
+    pub len: size_t,
+    /// Frame sequence number
+    pub input_frameno: u64,
+    /// Frame type
+    pub frame_type: FrameType,
+    /// User provided opaque data
+    pub opaque: *mut c_void,
+    /// The reconstruction of the shown frame.
+    /// This is freed automatically by `rav1e_packet_unref()`.
+    pub rec: *mut Frame,
+    /// The Reference Frame
+    /// This is freed automatically by `rav1e_packet_unref()`.
+    pub source: *mut Frame,
+  }
+  @end
