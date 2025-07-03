@@ -1570,6 +1570,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
         .min(tx_size.height());
 
     let hash = hashcoeffs::<T>(qcoeffs);
+    println!("coeffs {coeffs:?}\nqcoeffs {qcoeffs:?}\nhash {hash}");
     match hashmap {
       Some(hashmap) => {
         let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
