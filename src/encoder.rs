@@ -1569,8 +1569,14 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
         .min(tx_size.height());
 
-    let hash = hashcoeffs::<T>(qcoeffs);
-    println!("coeffs {coeffs:?}\nqcoeffs {qcoeffs:?}\nhash {hash}");
+    //let hash = hashcoeffs::<T>(qcoeffs);
+    let hash = 0xFFFFFFFFFFFFFFFFu64;
+    let hash_bytes = hash.to_ne_bytes();
+    println!(
+      "coeffs {coeffs:?}\nqcoeffs {qcoeffs:?}\nhash {hash}\nBytes {:?}",
+      hash_bytes
+    );
+
     match hashmap {
       Some(hashmap) => {
         let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
