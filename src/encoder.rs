@@ -1569,8 +1569,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
         .min(tx_size.height());
 
-    //let hash = hashcoeffs::<T>(qcoeffs);
-    let hash = 0xFFFFFFFFFFFFFFFFu64;
+    let hash = hashcoeffs::<T>(qcoeffs);
+    //let hash = 0xFFFFFFFFFFFFFFFFu64;
     let hash_bytes = hash.to_ne_bytes();
     println!(
       "coeffs {coeffs:?}\nqcoeffs {qcoeffs:?}\nhash {hash}\nBytes {:?}",
@@ -1580,11 +1580,22 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     match hashmap {
       Some(hashmap) => {
         let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
+        let bytes = hash_bytes;
+        bytes.iter().rev().for_each(|byte| {
+          w.bit(((byte >> 7) & 0b1).into());
+          w.bit(((byte >> 6) & 0b1).into());
+          w.bit(((byte >> 5) & 0b1).into());
+          w.bit(((byte >> 4) & 0b1).into());
+          w.bit(((byte >> 3) & 0b1).into());
+          w.bit(((byte >> 2) & 0b1).into());
+          w.bit(((byte >> 1) & 0b1).into());
+          w.bit(((byte >> 0) & 0b1).into());
+        });
         match hashmap_guard.insert(
           hash,
           qcoeffs.iter().map(|p| p.clone().to_u8().unwrap_or(0)).collect(),
         ) {
-          Some(_) => cw.write_hash_lv_map(
+          Some(_) => cw.write_coeffs_lv_map(
             w,
             p,
             tx_bo,
@@ -1599,7 +1610,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
             fi.use_reduced_tx_set,
             frame_clipped_txw,
             frame_clipped_txh,
-            hash,
           ),
           None => cw.write_coeffs_lv_map(
             w,
@@ -2290,7 +2300,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       false,
       rdo_type,
       need_recon_pixel,
-      hashmap,
+      hashmap.clone(),
     )
   }
 }
