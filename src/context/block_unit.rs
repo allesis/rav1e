@@ -1565,17 +1565,9 @@ impl ContextWriter<'_> {
         4
       }
     } else if avail_up {
-      if above_single {
-        above_backward as usize
-      } else {
-        3
-      }
+      if above_single { above_backward as usize } else { 3 }
     } else if avail_left {
-      if left_single {
-        left_backward as usize
-      } else {
-        3
-      }
+      if left_single { left_backward as usize } else { 3 }
     } else {
       1
     }
@@ -1619,17 +1611,9 @@ impl ContextWriter<'_> {
       if !above_comp_inter && !left_comp_inter {
         1 + 2 * samedir
       } else if !above_comp_inter {
-        if !left_uni_comp {
-          1
-        } else {
-          3 + samedir
-        }
+        if !left_uni_comp { 1 } else { 3 + samedir }
       } else if !left_comp_inter {
-        if !above_uni_comp {
-          1
-        } else {
-          3 + samedir
-        }
+        if !above_uni_comp { 1 } else { 3 + samedir }
       } else if !above_uni_comp && !left_uni_comp {
         0
       } else if !above_uni_comp || !left_uni_comp {
@@ -1785,7 +1769,7 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize, hash: u64,
+    frame_clipped_txh: usize,
   ) -> bool {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
@@ -1803,8 +1787,6 @@ impl ContextWriter<'_> {
     let coeffs = &mut coeffs_storage.data;
     coeffs.extend(scan.iter().map(|&scan_idx| coeffs_in[scan_idx as usize]));
 
-    let cul_level: u32 = coeffs.iter().map(|c| u32::cast_from(c.abs())).sum();
-
     let txs_ctx = Self::get_txsize_entropy_ctx(tx_size);
     let txb_ctx = self.bc.get_txb_ctx(
       plane_bsize,
@@ -1819,7 +1801,7 @@ impl ContextWriter<'_> {
 
     {
       let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
-      symbol_with_update!(self, w, (eob == 0) as u32, cdf);
+      //symbol_with_update!(self, w, (eob == 0) as u32, cdf);
     }
 
     if eob == 0 {
@@ -1833,26 +1815,17 @@ impl ContextWriter<'_> {
 
     self.txb_init_levels(coeffs_in, height, levels, height + TX_PAD_HOR);
 
-    let tx_class = tx_type_to_class[tx_type as usize];
-    let plane_type = usize::from(plane != 0);
-
     // Signal tx_type for luma plane only
-    if plane == 0 {
-      self.write_tx_type(
-        w,
-        tx_size,
-        tx_type,
-        pred_mode,
-        is_inter,
-        use_reduced_tx_set,
-      );
-    }
-
-    self.encode_eob(eob, tx_size, tx_class, txs_ctx, plane_type, w);
-    self.encode_hash(hash, w);
-    let cul_level =
-      self.encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level);
-    self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
+    // if plane == 0 {
+    //   self.write_tx_type(
+    //     w,
+    //     tx_size,
+    //     tx_type,
+    //     pred_mode,
+    //     is_inter,
+    //     use_reduced_tx_set,
+    //   );
+    // }
     true
   }
 
