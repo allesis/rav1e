@@ -1569,9 +1569,15 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
         .min(tx_size.height());
 
-    let hash =
-      hashcoeffs::<T>(coeffs, eob, frame_clipped_txw, frame_clipped_txh);
-    //let hash = 0xFFFFFFFFFFFFFFFFu64;
+    let hash = hashcoeffs::<T>(
+      coeffs,
+      eob,
+      frame_clipped_txw,
+      frame_clipped_txh,
+      p,
+      tx_size.width(),
+      tx_size.height(),
+    );
     let hash_bytes = hash.to_ne_bytes();
 
     match hashmap {
