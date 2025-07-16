@@ -1607,22 +1607,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
           hash,
           qcoeffs.iter().map(|p| p.clone().to_u8().unwrap_or(0)).collect(),
         ) {
-          Some(_) => cw.write_coeffs_lv_map(
-            w,
-            p,
-            tx_bo,
-            qcoeffs,
-            eob,
-            mode,
-            tx_size,
-            tx_type,
-            plane_bsize,
-            xdec,
-            ydec,
-            fi.use_reduced_tx_set,
-            frame_clipped_txw,
-            frame_clipped_txh,
-          ),
+          Some(_) => true,
           None => cw.write_coeffs_lv_map(
             w,
             p,
