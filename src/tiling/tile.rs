@@ -8,6 +8,7 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use super::*;
+use std::hash::Hash;
 
 use crate::context::*;
 use crate::frame::*;
@@ -86,7 +87,7 @@ impl From<TileRect> for Rect {
 }
 
 /// Tiled view of a frame
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct Tile<'a, T: Pixel> {
   pub planes: [PlaneRegion<'a, T>; MAX_PLANES],
 }

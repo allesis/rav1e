@@ -17,9 +17,10 @@ use std::iter::FusedIterator;
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 use std::slice;
+use std::hash::Hash;
 
 /// Rectangle of a plane region, in pixels
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct Rect {
   // coordinates relative to the plane origin (xorigin, yorigin)
   pub x: isize,
@@ -119,6 +120,30 @@ pub struct PlaneRegion<'a, T: Pixel> {
   // private to guarantee borrowing rules
   rect: Rect,
   phantom: PhantomData<&'a T>,
+}
+
+impl<T: Pixel> Hash for PlaneRegion<'_,T> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    // Data, rect, and phantom are all hashable
+    // So we can hash them directly
+    self.data.hash(state);
+    self.rect.hash(state);
+    self.phantom.hash(state);
+
+    // PlaneConfig is not hashable and is foreign struct
+    // We need to hash each of its attributes manually
+    self.plane_cfg.stride.hash(state);
+    self.plane_cfg.alloc_height.hash(state);
+    self.plane_cfg.width.hash(state);
+    self.plane_cfg.height.hash(state);
+    self.plane_cfg.xdec.hash(state);
+    self.plane_cfg.ydec.hash(state);
+    self.plane_cfg.xpad.hash(state);
+    self.plane_cfg.ypad.hash(state);
+    self.plane_cfg.xorigin.hash(state);
+    self.plane_cfg.yorigin.hash(state);
+    // Done hashing manually
+  }
 }
 
 /// Mutable bounded region of a plane

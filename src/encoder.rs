@@ -16,6 +16,7 @@ use std::{fmt, io, mem};
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
+use num_traits::ToPrimitive;
 use rayon::iter::*;
 
 use crate::activity::*;
@@ -25,6 +26,7 @@ use crate::context::*;
 use crate::deblock::*;
 use crate::ec::*;
 use crate::frame::*;
+use crate::hash::hashcoeffs;
 use crate::header::*;
 use crate::lrf::*;
 use crate::mc::{FilterMode, MotionVector};
@@ -2666,11 +2668,11 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
   let can_split = // FIXME: sub-8x8 inter blocks not supported for non-4:2:0 sampling
     if fi.frame_type.has_inter() &&
       fi.sequence.chroma_sampling != ChromaSampling::Cs420 &&
-      bsize <= BlockSize::BLOCK_8X8 {
-      false
-    } else {
-      (bsize > fi.partition_range.min && is_square) || must_split
-    };
+        bsize <= BlockSize::BLOCK_8X8 {
+          false
+        } else {
+          (bsize > fi.partition_range.min && is_square) || must_split
+        };
 
   assert!(bsize >= BlockSize::BLOCK_8X8 || !can_split);
 
@@ -2939,11 +2941,11 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
   let can_split = // FIXME: sub-8x8 inter blocks not supported for non-4:2:0 sampling
     if fi.frame_type.has_inter() &&
       fi.sequence.chroma_sampling != ChromaSampling::Cs420 &&
-      bsize <= BlockSize::BLOCK_8X8 {
-      false
-    } else {
-      (bsize > fi.partition_range.min && is_square) || must_split
-    };
+        bsize <= BlockSize::BLOCK_8X8 {
+          false
+        } else {
+          (bsize > fi.partition_range.min && is_square) || must_split
+        };
 
   let mut rdo_output =
     block_output.clone().unwrap_or_else(|| PartitionGroupParameters {

@@ -22,11 +22,13 @@ use crate::common::*;
 use crate::error::*;
 use crate::stats::*;
 use rav1e::config::CpuFeatureLevel;
+use rav1e::hash::*;
 use rav1e::prelude::*;
 
 use crate::decoder::{Decoder, FrameBuilder, VideoDetails};
 use crate::muxer::*;
 use std::fs::File;
+use std::hash::{DefaultHasher, Hash};
 use std::io::{Read, Seek, Write};
 use std::process::exit;
 use std::sync::Arc;
@@ -92,6 +94,13 @@ impl<D: Decoder> Source<D> {
 
     match self.input.read_frame(ctx, &video_info) {
       Ok(frame) => {
+        // Hash test
+        let mut hasher = DefaultHasher::new();
+        let hashframe: hashframe::HashFrame<T> =
+          hashframe::HashFrame::from(frame.clone());
+        hashframe.hash(&mut hasher);
+        // End
+
         match video_info.bit_depth {
           8 | 10 | 12 => {}
           _ => return Err(CliError::new("Unsupported bit depth")),
