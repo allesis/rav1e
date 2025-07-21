@@ -35,11 +35,11 @@ use crate::partition::PartitionType::*;
 use crate::partition::RefType::*;
 use crate::partition::*;
 use crate::predict::{
-  AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
+  luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
 };
 use crate::quantize::*;
 use crate::rate::{
-  FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters,
+  QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE,
 };
 use crate::rdo::*;
 use crate::segmentation::*;
@@ -1592,17 +1592,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     match hashmap {
       Some(hashmap) => {
         let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-        let bytes = hash_bytes;
-        bytes.iter().rev().for_each(|byte| {
-          w.bit(((byte >> 7) & 0b1).into());
-          w.bit(((byte >> 6) & 0b1).into());
-          w.bit(((byte >> 5) & 0b1).into());
-          w.bit(((byte >> 4) & 0b1).into());
-          w.bit(((byte >> 3) & 0b1).into());
-          w.bit(((byte >> 2) & 0b1).into());
-          w.bit(((byte >> 1) & 0b1).into());
-          w.bit(((byte >> 0) & 0b1).into());
-        });
         match hashmap_guard.insert(
           hash,
           qcoeffs.iter().map(|p| p.clone().to_u8().unwrap_or(0)).collect(),
@@ -1612,7 +1601,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
             p,
             tx_bo,
             qcoeffs,
-            eob,
+            0,
             mode,
             tx_size,
             tx_type,
@@ -1622,6 +1611,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
             fi.use_reduced_tx_set,
             frame_clipped_txw,
             frame_clipped_txh,
+            true,
+            hash,
           ),
           None => cw.write_coeffs_lv_map(
             w,
@@ -1638,6 +1629,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
             fi.use_reduced_tx_set,
             frame_clipped_txw,
             frame_clipped_txh,
+            false,
+            hash,
           ),
         }
       }
@@ -1656,6 +1649,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
         fi.use_reduced_tx_set,
         frame_clipped_txw,
         frame_clipped_txh,
+        false,
+        hash,
       ),
     }
   } else {
