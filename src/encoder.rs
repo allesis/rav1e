@@ -1614,8 +1614,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
               hash_object.cul_level,
             );
 
-            println!("EOB {:?}", eob);
-
             return (
               hash_object.hash_coeffs,
               ScaledDistortion(hash_object.tx_dist.0),
