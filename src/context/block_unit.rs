@@ -1877,10 +1877,6 @@ impl ContextWriter<'_> {
     }
 
     self.encode_hash(hash, w);
-    if is_hash {
-      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
-      return (true, 0);
-    }
 
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
@@ -1891,6 +1887,10 @@ impl ContextWriter<'_> {
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
 
+    if is_hash {
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+      return (true, 0);
+    }
     // Signal tx_type for luma plane only
     if plane == 0 {
       self.write_tx_type(
@@ -1904,11 +1904,9 @@ impl ContextWriter<'_> {
     }
 
     self.encode_eob(eob, tx_size, tx_class, txs_ctx, plane_type, w);
-    if !is_hash {
-      self.encode_coeffs(
-        coeffs, levels, scan, eob, tx_size, tx_class, txs_ctx, plane_type, w,
-      );
-    }
+    self.encode_coeffs(
+      coeffs, levels, scan, eob, tx_size, tx_class, txs_ctx, plane_type, w,
+    );
     let cul_level = self
       .encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level, is_hash);
     self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
@@ -1971,7 +1969,7 @@ impl ContextWriter<'_> {
   }
 
   fn encode_hash<W: Writer>(&mut self, hash: u64, w: &mut W) {
-    let bytes = hash.to_ne_bytes();
+    let bytes = hash.to_le_bytes();
     bytes.iter().rev().for_each(|byte| {
       w.bit(((byte >> 7) & 0b1).into());
       w.bit(((byte >> 6) & 0b1).into());
