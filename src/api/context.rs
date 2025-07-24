@@ -33,10 +33,6 @@ pub struct Context<T: Pixel> {
 }
 
 impl<T: Pixel> Context<T> {
-  /// Prints something!
-  pub fn print_hashmap(&self) {
-    self.inner.print_hashmap();
-  }
   /// Allocates and returns a new frame.
   ///
   /// # Examples

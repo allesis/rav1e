@@ -20,9 +20,10 @@ use crate::encoder::*;
 use crate::frame::*;
 use crate::partition::*;
 use crate::rate::{
-  RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,
-  FRAME_SUBTYPE_SEF,
+  FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
+  RCState,
 };
+use crate::rdo::ScaledDistortion;
 use crate::scenechange::SceneChangeDetector;
 use crate::stats::EncoderStats;
 use crate::tiling::Area;
@@ -259,13 +260,17 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
-  hashmap: Arc<Mutex<HashMap<u64, Vec<u8>>>>,
+  hashmap: Arc<Mutex<HashMap<u64, HashObject>>>,
+}
+
+pub struct HashObject {
+  pub coeffs: Vec<u8>,
+  pub hash_coeffs: bool,
+  pub tx_dist: ScaledDistortion,
+  pub cul_level: u8,
 }
 
 impl<T: Pixel> ContextInner<T> {
-  pub fn print_hashmap(&self) {
-    println!("{:?}", self.hashmap);
-  }
   pub fn new(enc: &EncoderConfig) -> Self {
     // initialize with temporal delimiter
     let packet_data = TEMPORAL_DELIMITER.to_vec();

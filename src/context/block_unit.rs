@@ -1565,17 +1565,9 @@ impl ContextWriter<'_> {
         4
       }
     } else if avail_up {
-      if above_single {
-        above_backward as usize
-      } else {
-        3
-      }
+      if above_single { above_backward as usize } else { 3 }
     } else if avail_left {
-      if left_single {
-        left_backward as usize
-      } else {
-        3
-      }
+      if left_single { left_backward as usize } else { 3 }
     } else {
       1
     }
@@ -1619,17 +1611,9 @@ impl ContextWriter<'_> {
       if !above_comp_inter && !left_comp_inter {
         1 + 2 * samedir
       } else if !above_comp_inter {
-        if !left_uni_comp {
-          1
-        } else {
-          3 + samedir
-        }
+        if !left_uni_comp { 1 } else { 3 + samedir }
       } else if !left_comp_inter {
-        if !above_uni_comp {
-          1
-        } else {
-          3 + samedir
-        }
+        if !above_uni_comp { 1 } else { 3 + samedir }
       } else if !above_uni_comp && !left_uni_comp {
         0
       } else if !above_uni_comp || !left_uni_comp {
@@ -1850,8 +1834,8 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize, is_hash: bool, hash: u64,
-  ) -> bool {
+    frame_clipped_txh: usize, is_hash: bool, hash: u64, cul_lvl: u8,
+  ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
 
@@ -1887,10 +1871,15 @@ impl ContextWriter<'_> {
       symbol_with_update!(self, w, (eob == 0) as u32, cdf);
     }
 
-    self.encode_hash(hash, w);
     if eob == 0 {
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, 0);
-      return false;
+      return (false, 0);
+    }
+
+    self.encode_hash(hash, w);
+    if is_hash {
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+      return (true, 0);
     }
 
     let mut levels_buf = [0u8; TX_PAD_2D];
@@ -1915,13 +1904,15 @@ impl ContextWriter<'_> {
     }
 
     self.encode_eob(eob, tx_size, tx_class, txs_ctx, plane_type, w);
-    self.encode_coeffs(
-      coeffs, levels, scan, eob, tx_size, tx_class, txs_ctx, plane_type, w,
-    );
+    if !is_hash {
+      self.encode_coeffs(
+        coeffs, levels, scan, eob, tx_size, tx_class, txs_ctx, plane_type, w,
+      );
+    }
     let cul_level = self
       .encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level, is_hash);
     self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
-    true
+    (true, cul_level as u8)
   }
 
   fn encode_eob<W: Writer>(
@@ -2080,12 +2071,12 @@ impl ContextWriter<'_> {
         } else {
           w.bit(sign as u16);
         }
-      }
-      // save extra golomb codes for separate loop
-      if level > T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
-        w.write_golomb(u32::cast_from(
-          level - T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1),
-        ));
+        // save extra golomb codes for separate loop
+        if level > T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
+          w.write_golomb(u32::cast_from(
+            level - T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1),
+          ));
+        }
       }
     }
 
