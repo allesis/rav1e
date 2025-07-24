@@ -1834,8 +1834,8 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize,
-  ) -> bool {
+    frame_clipped_txh: usize, is_hash: bool, hash: u64, cul_lvl: u8,
+  ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
 
@@ -1873,8 +1873,10 @@ impl ContextWriter<'_> {
 
     if eob == 0 {
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, 0);
-      return false;
+      return (false, 0);
     }
+
+    self.encode_hash(hash, w);
 
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
@@ -1885,6 +1887,10 @@ impl ContextWriter<'_> {
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
 
+    if is_hash {
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+      return (true, 0);
+    }
     // Signal tx_type for luma plane only
     if plane == 0 {
       self.write_tx_type(
@@ -1901,10 +1907,10 @@ impl ContextWriter<'_> {
     self.encode_coeffs(
       coeffs, levels, scan, eob, tx_size, tx_class, txs_ctx, plane_type, w,
     );
-    let cul_level =
-      self.encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level);
+    let cul_level = self
+      .encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level, is_hash);
     self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
-    true
+    (true, cul_level as u8)
   }
 
   fn encode_eob<W: Writer>(
@@ -1963,10 +1969,17 @@ impl ContextWriter<'_> {
   }
 
   fn encode_hash<W: Writer>(&mut self, hash: u64, w: &mut W) {
-    let low: u32 = (hash & 0xFFFF_FFFF) as u32;
-    let high: u32 = (hash >> 32) as u32;
-    w.literal(32, high);
-    w.literal(32, low);
+    let bytes = hash.to_le_bytes();
+    bytes.iter().rev().for_each(|byte| {
+      w.bit(((byte >> 7) & 0b1).into());
+      w.bit(((byte >> 6) & 0b1).into());
+      w.bit(((byte >> 5) & 0b1).into());
+      w.bit(((byte >> 4) & 0b1).into());
+      w.bit(((byte >> 3) & 0b1).into());
+      w.bit(((byte >> 2) & 0b1).into());
+      w.bit(((byte >> 1) & 0b1).into());
+      w.bit(((byte >> 0) & 0b1).into());
+    });
   }
 
   fn encode_coeffs<T: Coefficient, W: Writer>(
@@ -2038,7 +2051,7 @@ impl ContextWriter<'_> {
 
   fn encode_coeff_signs<T: Coefficient, W: Writer>(
     &mut self, coeffs: &[T], w: &mut W, plane_type: usize, txb_ctx: TXB_CTX,
-    orig_cul_level: u32,
+    orig_cul_level: u32, is_hash: bool,
   ) -> u32 {
     // Loop to code all signs in the transform block,
     // starting with the sign of DC (if applicable)
@@ -2049,17 +2062,19 @@ impl ContextWriter<'_> {
 
       let level = v.abs();
       let sign = u32::from(v < T::cast_from(0));
-      if c == 0 {
-        let cdf = &self.fc.dc_sign_cdf[plane_type][txb_ctx.dc_sign_ctx];
-        symbol_with_update!(self, w, sign, cdf);
-      } else {
-        w.bit(sign as u16);
-      }
-      // save extra golomb codes for separate loop
-      if level > T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
-        w.write_golomb(u32::cast_from(
-          level - T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1),
-        ));
+      if !is_hash {
+        if c == 0 {
+          let cdf = &self.fc.dc_sign_cdf[plane_type][txb_ctx.dc_sign_ctx];
+          symbol_with_update!(self, w, sign, cdf);
+        } else {
+          w.bit(sign as u16);
+        }
+        // save extra golomb codes for separate loop
+        if level > T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
+          w.write_golomb(u32::cast_from(
+            level - T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1),
+          ));
+        }
       }
     }
 
