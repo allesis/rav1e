@@ -1566,113 +1566,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   );
   // SAFETY: forward_transform initialized coeffs
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
-  let mut hash = 0x0u64;
-  let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
 
-  let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
-    debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
-    let frame_clipped_txw: usize =
-      (((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec)
-        .min(tx_size.width());
-    let frame_clipped_txh: usize =
-      (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
-        .min(tx_size.height());
-
-    hash = hashcoeffs::<T>(
-      coeffs,
-      eob,
-      frame_clipped_txw,
-      frame_clipped_txh,
-      p,
-      tx_size.width(),
-      tx_size.height(),
-    );
-
-    match hashmap {
-      Some(ref hashmap) => {
-        let hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-        match hashmap_guard.get(&hash) {
-          Some(hash_object) => {
-            cw.write_coeffs_lv_map(
-              w,
-              p,
-              tx_bo,
-              qcoeffs,
-              eob,
-              mode,
-              tx_size,
-              tx_type,
-              plane_bsize,
-              xdec,
-              ydec,
-              fi.use_reduced_tx_set,
-              frame_clipped_txw,
-              frame_clipped_txh,
-              true,
-              hash,
-              hash_object.cul_level,
-            );
-
-            return (
-              hash_object.hash_coeffs,
-              ScaledDistortion(hash_object.tx_dist.0),
-            );
-          }
-          None => {
-            let (ret_val, cul_lvl) = cw.write_coeffs_lv_map(
-              w,
-              p,
-              tx_bo,
-              qcoeffs,
-              eob,
-              mode,
-              tx_size,
-              tx_type,
-              plane_bsize,
-              xdec,
-              ydec,
-              fi.use_reduced_tx_set,
-              frame_clipped_txw,
-              frame_clipped_txh,
-              false,
-              hash,
-              0,
-            );
-            cul_level = cul_lvl;
-            ret_val
-          }
-        }
-      }
-      None => {
-        let (ret_val, cul_lvl) = cw.write_coeffs_lv_map(
-          w,
-          p,
-          tx_bo,
-          qcoeffs,
-          eob,
-          mode,
-          tx_size,
-          tx_type,
-          plane_bsize,
-          xdec,
-          ydec,
-          fi.use_reduced_tx_set,
-          frame_clipped_txw,
-          frame_clipped_txh,
-          false,
-          hash,
-          0,
-        );
-        cul_level = cul_lvl;
-        ret_val
-      }
-    }
-  } else {
-    true
-  };
-
-  // Reconstruct
+  let mut eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
   dequantize(
     qidx,
     qcoeffs,
@@ -1686,7 +1581,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   );
   // SAFETY: dequantize initialized rcoeffs
   let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
-
   if eob == 0 {
     // All zero coefficients is a no-op
   } else if !fi.use_tx_domain_distortion || need_recon_pixel {
@@ -1700,7 +1594,66 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       fi.cpu_feature_level,
     );
   }
+  println!("CF {:?}", rcoeffs);
+  let hash = hashcoeffs::<T>(
+    coeffs,
+    coeffs.len(),
+    0,
+    0,
+    p,
+    tx_size.width(),
+    tx_size.height(),
+  );
 
+  /*
+  let mut has_hash = false;
+  match hashmap {
+    Some(ref hashmap) => {
+      let hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
+      match hashmap_guard.get(&hash) {
+        Some(hash_object) => {
+          hash.to_le_bytes().iter().enumerate().for_each(|(i, b)| {
+            coeffs[i] = T::Coeff::cast_from(*b);
+          });
+          has_hash = true;
+        }
+        None => {}
+      }
+    }
+    None => {}
+  }
+  w.bit(has_hash as u16);
+  */
+  let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
+    debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
+    debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
+    let frame_clipped_txw: usize =
+      (((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec)
+        .min(tx_size.width());
+    let frame_clipped_txh: usize =
+      (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
+        .min(tx_size.height());
+    cw.write_coeffs_lv_map(
+      w,
+      p,
+      tx_bo,
+      qcoeffs,
+      eob,
+      mode,
+      tx_size,
+      tx_type,
+      plane_bsize,
+      xdec,
+      ydec,
+      fi.use_reduced_tx_set,
+      frame_clipped_txw,
+      frame_clipped_txh,
+    )
+  } else {
+    true
+  };
+
+  // Reconstruct
   let tx_dist =
     if rdo_type.needs_tx_dist() && visible_tx_w != 0 && visible_tx_h != 0 {
       // Store tx-domain distortion of this block
@@ -1743,6 +1696,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     } else {
       ScaledDistortion::zero()
     };
+  /*
   if has_coeff {
     match hashmap {
       Some(hashmap) => {
@@ -1762,7 +1716,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       }
       None => (),
     }
-  }
+  }*/
+
   (has_coeff, tx_dist)
 }
 
