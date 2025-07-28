@@ -1565,17 +1565,9 @@ impl ContextWriter<'_> {
         4
       }
     } else if avail_up {
-      if above_single {
-        above_backward as usize
-      } else {
-        3
-      }
+      if above_single { above_backward as usize } else { 3 }
     } else if avail_left {
-      if left_single {
-        left_backward as usize
-      } else {
-        3
-      }
+      if left_single { left_backward as usize } else { 3 }
     } else {
       1
     }
@@ -1619,17 +1611,9 @@ impl ContextWriter<'_> {
       if !above_comp_inter && !left_comp_inter {
         1 + 2 * samedir
       } else if !above_comp_inter {
-        if !left_uni_comp {
-          1
-        } else {
-          3 + samedir
-        }
+        if !left_uni_comp { 1 } else { 3 + samedir }
       } else if !left_comp_inter {
-        if !above_uni_comp {
-          1
-        } else {
-          3 + samedir
-        }
+        if !above_uni_comp { 1 } else { 3 + samedir }
       } else if !above_uni_comp && !left_uni_comp {
         0
       } else if !above_uni_comp || !left_uni_comp {
@@ -1780,13 +1764,78 @@ impl ContextWriter<'_> {
     symbol_with_update!(self, w, is_inter as u32, cdf);
   }
 
-  pub fn write_coeffs_lv_map<T: Coefficient, W: Writer>(
+  pub fn write_hash_lv_map<T: Coefficient, W: Writer>(
     &mut self, w: &mut W, plane: usize, bo: TileBlockOffset, coeffs_in: &[T],
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
     frame_clipped_txh: usize,
   ) -> bool {
+    debug_assert!(frame_clipped_txw != 0);
+    debug_assert!(frame_clipped_txh != 0);
+
+    let is_inter = pred_mode >= PredictionMode::NEARESTMV;
+
+    // Note: Both intra and inter mode uses inter scan order. Surprised?
+    let scan: &[u16] = &av1_scan_orders[tx_size as usize][tx_type as usize]
+      .scan[..usize::from(eob)];
+    let height = av1_get_coded_tx_size(tx_size).height();
+
+    // Create a slice with coeffs in scan order
+    let mut coeffs_storage: Aligned<ArrayVec<T, { 32 * 32 }>> =
+      Aligned::new(ArrayVec::new());
+    let coeffs = &mut coeffs_storage.data;
+    coeffs.extend(scan.iter().map(|&scan_idx| coeffs_in[scan_idx as usize]));
+
+    let txs_ctx = Self::get_txsize_entropy_ctx(tx_size);
+    let txb_ctx = self.bc.get_txb_ctx(
+      plane_bsize,
+      tx_size,
+      plane,
+      bo,
+      xdec,
+      ydec,
+      frame_clipped_txw,
+      frame_clipped_txh,
+    );
+
+    {
+      let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
+      //symbol_with_update!(self, w, (eob == 0) as u32, cdf);
+    }
+
+    if eob == 0 {
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, 0);
+      return false;
+    }
+
+    let mut levels_buf = [0u8; TX_PAD_2D];
+    let levels: &mut [u8] =
+      &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
+
+    self.txb_init_levels(coeffs_in, height, levels, height + TX_PAD_HOR);
+
+    // Signal tx_type for luma plane only
+    // if plane == 0 {
+    //   self.write_tx_type(
+    //     w,
+    //     tx_size,
+    //     tx_type,
+    //     pred_mode,
+    //     is_inter,
+    //     use_reduced_tx_set,
+    //   );
+    // }
+    true
+  }
+
+  pub fn write_coeffs_lv_map<T: Coefficient, W: Writer>(
+    &mut self, w: &mut W, plane: usize, bo: TileBlockOffset, coeffs_in: &[T],
+    eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
+    plane_bsize: BlockSize, xdec: usize, ydec: usize,
+    use_reduced_tx_set: bool, frame_clipped_txw: usize,
+    frame_clipped_txh: usize, cul_lvl: u8,
+  ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
 
@@ -1823,8 +1872,10 @@ impl ContextWriter<'_> {
     }
 
     if eob == 0 {
-      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, 0);
-      return false;
+      // cul_lvl will always be 0 if eob is actually 0
+      // Otherwise will be the result of the previous cul_lvl calc
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+      return (false, cul_lvl);
     }
 
     let mut levels_buf = [0u8; TX_PAD_2D];
@@ -1855,7 +1906,7 @@ impl ContextWriter<'_> {
     let cul_level =
       self.encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level);
     self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
-    true
+    (true, cul_level as u8)
   }
 
   fn encode_eob<W: Writer>(
