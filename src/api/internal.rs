@@ -264,9 +264,6 @@ pub(crate) struct ContextInner<T: Pixel> {
 }
 
 pub struct HashObject {
-  pub coeffs: Vec<u8>,
-  pub hash_coeffs: bool,
-  pub tx_dist: ScaledDistortion,
   pub cul_level: u8,
 }
 

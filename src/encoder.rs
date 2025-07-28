@@ -1594,17 +1594,108 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       fi.cpu_feature_level,
     );
   }
-  println!("CF {:?}", rcoeffs);
-  let hash = hashcoeffs::<T>(
-    coeffs,
-    coeffs.len(),
-    0,
-    0,
-    p,
-    tx_size.width(),
-    tx_size.height(),
-  );
+  let hash = hashcoeffs::<T>(rcoeffs, eob, 0, 0);
+  let back_eob = eob;
 
+  // println!("HASH {:?} -> CF {:?}", hash, rcoeffs);
+  let marker;
+  let mut eob = eob;
+  let mut cul_lvl = 0;
+
+  if eob != 0 {
+    if let Some(hashmap) = hashmap.clone() {
+      // We have a hashmap, we should attempt hash based encoding
+
+      // NOTE: This could either be a lock or a try_lock
+      // If a lock is used, we will wait until the hashmap is available to continue
+      // which may DESTROY performance
+      // If we use a try_lock, we may miss chances to decrease encoding size
+      // For now a lock will be used
+      let hashmap_lock = hashmap.lock().expect("FAILED TO LOCK HASHMAP");
+      match hashmap_lock.get(&hash) {
+        Some(hash_object) => {
+          // We have previously sent these coefficents
+          // Marker is 1
+          marker = 0b1;
+          eob = 0;
+          cul_lvl = hash_object.cul_level;
+        }
+        None => {
+          // We have never sent these coefficents
+          // Marker is 0
+          marker = 0b0;
+        }
+      }
+    } else {
+      marker = 0b0;
+    }
+  } else {
+    marker = 0b0;
+  }
+  w.bit(marker);
+  if marker == 1 {
+    for byte in hash.to_be_bytes() {
+      w.bit(((byte >> 7) & 0b1).into());
+      w.bit(((byte >> 6) & 0b1).into());
+      w.bit(((byte >> 5) & 0b1).into());
+      w.bit(((byte >> 4) & 0b1).into());
+      w.bit(((byte >> 3) & 0b1).into());
+      w.bit(((byte >> 2) & 0b1).into());
+      w.bit(((byte >> 1) & 0b1).into());
+      w.bit(((byte >> 0) & 0b1).into());
+    }
+    println!("USED A HASH");
+  }
+  let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
+    debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
+    debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
+    let frame_clipped_txw: usize =
+      (((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec)
+        .min(tx_size.width());
+    let frame_clipped_txh: usize =
+      (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
+        .min(tx_size.height());
+    let (res_val, cul_level) = cw.write_coeffs_lv_map(
+      w,
+      p,
+      tx_bo,
+      qcoeffs,
+      eob,
+      mode,
+      tx_size,
+      tx_type,
+      plane_bsize,
+      xdec,
+      ydec,
+      fi.use_reduced_tx_set,
+      frame_clipped_txw,
+      frame_clipped_txh,
+      cul_lvl,
+    );
+    cul_lvl = cul_level;
+    res_val || eob != back_eob
+  } else {
+    true
+  };
+
+  // EOB may have been dropped at this point so resetting it may be useless
+  let eob = back_eob;
+
+  if let Some(hashmap) = hashmap {
+    // We have a hashmap, we should attempt hash based encoding
+
+    // NOTE: This could either be a lock or a try_lock
+    // If a lock is used, we will wait until the hashmap is available to continue
+    // which may DESTROY performance
+    // If we use a try_lock, we may miss chances to decrease encoding size
+    // For now a lock will be used
+    let mut hashmap_lock = hashmap.lock().expect("FAILED TO LOCK HASHMAP");
+    if marker == 0 && eob != 0 {
+      let hash_object = HashObject { cul_level: cul_lvl };
+      hashmap_lock.insert(hash, hash_object);
+      println!("HASH ADDED {:?}", hash);
+    }
+  }
   /*
   let mut has_hash = false;
   match hashmap {
@@ -1624,34 +1715,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   }
   w.bit(has_hash as u16);
   */
-  let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
-    debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
-    let frame_clipped_txw: usize =
-      (((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec)
-        .min(tx_size.width());
-    let frame_clipped_txh: usize =
-      (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
-        .min(tx_size.height());
-    cw.write_coeffs_lv_map(
-      w,
-      p,
-      tx_bo,
-      qcoeffs,
-      eob,
-      mode,
-      tx_size,
-      tx_type,
-      plane_bsize,
-      xdec,
-      ydec,
-      fi.use_reduced_tx_set,
-      frame_clipped_txw,
-      frame_clipped_txh,
-    )
-  } else {
-    true
-  };
 
   // Reconstruct
   let tx_dist =
