@@ -19,7 +19,6 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
-use num_traits::{ToBytes, ToPrimitive};
 use rayon::iter::*;
 
 use crate::{
@@ -37,10 +36,10 @@ use crate::{
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
   },
   quantize::*,
-  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
+  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1520,7 +1519,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     return (false, ScaledDistortion::zero());
   }
 
-  let mut cul_level = 0u8;
   let coded_tx_area = av1_get_coded_tx_size(tx_size).area();
   let mut residual = Aligned::<[MaybeUninit<i16>; 64 * 64]>::uninit_array();
   let mut coeffs = Aligned::<[MaybeUninit<T::Coeff>; 64 * 64]>::uninit_array();
@@ -1568,7 +1566,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   // SAFETY: forward_transform initialized coeffs
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
-  let mut eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+  let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
   dequantize(
     qidx,
     qcoeffs,
@@ -1645,7 +1643,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       w.bit(((byte >> 1) & 0b1).into());
       w.bit(((byte >> 0) & 0b1).into());
     }
-    println!("USED A HASH");
+    //println!("USED A HASH");
   }
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
@@ -1694,7 +1692,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     if marker == 0 && eob != 0 {
       let hash_object = HashObject { cul_level: cul_lvl };
       hashmap_lock.insert(hash, hash_object);
-      println!("HASH ADDED {:?}", hash);
+      //println!("HASH ADDED {:?}", hash);
     }
   }
   /*
