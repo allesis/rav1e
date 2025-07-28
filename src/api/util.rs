@@ -8,16 +8,16 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![deny(missing_docs)]
 
-use crate::frame::*;
-use crate::serialize::{Deserialize, Serialize};
-use crate::stats::EncoderStats;
-use crate::util::Pixel;
-
-use std::any::Any;
-use std::fmt;
-use std::sync::Arc;
+use std::{any::Any, fmt, sync::Arc};
 
 use thiserror::*;
+
+use crate::{
+  frame::*,
+  serialize::{Deserialize, Serialize},
+  stats::EncoderStats,
+  util::Pixel,
+};
 
 /// Opaque type to be passed from Frame to Packet
 #[derive(Debug)]

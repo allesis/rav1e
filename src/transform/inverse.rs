@@ -17,17 +17,10 @@ cfg_if::cfg_if! {
   }
 }
 
-use crate::tiling::PlaneRegionMut;
-use crate::util::*;
-
 // TODO: move 1d txfm code to rust module.
-
 use super::clamp_value;
-use super::consts::*;
-use super::get_1d_tx_types;
-use super::half_btf;
-use super::TxSize;
-use super::TxType;
+use super::{consts::*, get_1d_tx_types, half_btf, TxSize, TxType};
+use crate::{tiling::PlaneRegionMut, util::*};
 
 /// # Panics
 ///
@@ -1623,11 +1616,12 @@ static INV_TXFM_FNS: [[InvTxfmFn; 5]; 5] = [
 ];
 
 pub(crate) mod rust {
-  use super::*;
-  use crate::cpu_features::CpuFeatureLevel;
+  use std::cmp;
 
   use simd_helpers::cold_for_target_arch;
-  use std::cmp;
+
+  use super::*;
+  use crate::cpu_features::CpuFeatureLevel;
 
   #[cold_for_target_arch("x86_64", "aarch64")]
   pub fn inverse_transform_add<T: Pixel>(

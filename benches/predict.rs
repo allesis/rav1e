@@ -10,12 +10,14 @@
 use criterion::*;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use rav1e::bench::cpu_features::CpuFeatureLevel;
-use rav1e::bench::frame::*;
-use rav1e::bench::partition::{BlockSize, IntraEdge};
-use rav1e::bench::predict::*;
-use rav1e::bench::transform::TxSize;
-use rav1e::bench::util::*;
+use rav1e::bench::{
+  cpu_features::CpuFeatureLevel,
+  frame::*,
+  partition::{BlockSize, IntraEdge},
+  predict::*,
+  transform::TxSize,
+  util::*,
+};
 
 pub const BLOCK_SIZE: BlockSize = BlockSize::BLOCK_32X32;
 

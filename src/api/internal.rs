@@ -8,33 +8,35 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![deny(missing_docs)]
 
-use crate::activity::ActivityMask;
-use crate::api::lookahead::*;
-use crate::api::{
-  EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35,
+use std::{
+  cmp,
+  collections::{BTreeMap, BTreeSet, HashMap},
+  env, fs,
+  path::PathBuf,
+  sync::{Arc, Mutex},
 };
-use crate::color::ChromaSampling::Cs400;
-use crate::dist::get_satd;
-use crate::encoder::*;
-use crate::frame::*;
-use crate::partition::*;
-use crate::rate::{
-  FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
-  RCState,
-};
-use crate::rdo::ScaledDistortion;
-use crate::scenechange::SceneChangeDetector;
-use crate::stats::EncoderStats;
-use crate::tiling::Area;
-use crate::util::Pixel;
+
 use arrayvec::ArrayVec;
 use av_scenechange::SceneChangeDetector;
-use std::cmp;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::env;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+
+use crate::{
+  activity::ActivityMask,
+  api::{
+    lookahead::*, EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35,
+  },
+  color::ChromaSampling::Cs400,
+  dist::get_satd,
+  encoder::*,
+  frame::*,
+  partition::*,
+  rate::{
+    RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,
+    FRAME_SUBTYPE_SEF,
+  },
+  stats::EncoderStats,
+  tiling::Area,
+  util::Pixel,
+};
 
 /// The set of options that controls frame re-ordering and reference picture
 ///  selection.

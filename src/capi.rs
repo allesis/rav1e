@@ -20,26 +20,20 @@
 // const extern fns are unstable
 #![allow(clippy::missing_const_for_fn)]
 
-use std::slice;
-use std::sync::Arc;
+use std::{
+  ffi::{CStr, CString},
+  mem,
+  os::raw::{c_char, c_int, c_void},
+  slice,
+  sync::Arc,
+};
 
-use std::ffi::CStr;
-use std::ffi::CString;
-use std::mem;
-use std::os::raw::c_char;
-use std::os::raw::c_int;
-use std::os::raw::c_void;
-
-use libc::ptrdiff_t;
-use libc::size_t;
-
+use libc::{ptrdiff_t, size_t};
 use num_derive::*;
 use num_traits::cast::FromPrimitive;
-
 use scan_fmt::scan_fmt;
 
-use crate::api::SceneDetectionSpeed;
-use crate::prelude as rav1e;
+use crate::{api::SceneDetectionSpeed, prelude as rav1e};
 
 type PixelRange = rav1e::PixelRange;
 type ChromaSamplePosition = rav1e::ChromaSamplePosition;
@@ -1354,9 +1348,9 @@ pub unsafe extern fn rav1e_frame_extract_plane(
 
 #[cfg(test)]
 mod test {
-  use super::*;
-
   use std::ffi::CString;
+
+  use super::*;
 
   #[test]
   fn forward_opaque() {

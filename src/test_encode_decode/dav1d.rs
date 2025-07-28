@@ -7,19 +7,22 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::*;
-use crate::test_encode_decode::{compare_plane, DecodeResult, TestDecoder};
-use crate::util::{CastFromPrimitive, Pixel};
-use log::debug;
-use std::collections::VecDeque;
-use std::marker::PhantomData;
-use std::os::raw::c_int;
 use std::{
+  collections::VecDeque,
+  marker::PhantomData,
   mem::{self, MaybeUninit},
+  os::raw::c_int,
   ptr, slice,
 };
 
 use dav1d_sys::*;
+use log::debug;
+
+use super::*;
+use crate::{
+  test_encode_decode::{compare_plane, DecodeResult, TestDecoder},
+  util::{CastFromPrimitive, Pixel},
+};
 
 pub(crate) struct Dav1dDecoder<T: Pixel> {
   dec: *mut Dav1dContext,

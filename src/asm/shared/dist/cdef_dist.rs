@@ -9,12 +9,12 @@
 
 #[cfg(test)]
 pub mod test {
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::dist::*;
-  use crate::frame::*;
-  use crate::tiling::Area;
-  use crate::util::Pixel;
   use rand::{rng, Rng};
+
+  use crate::{
+    cpu_features::CpuFeatureLevel, dist::*, frame::*, tiling::Area,
+    util::Pixel,
+  };
 
   fn random_planes<T: Pixel>(bd: usize) -> (Plane<T>, Plane<T>) {
     let mut rng = rng();

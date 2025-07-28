@@ -7,9 +7,9 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::tiling::PlaneRegionMut;
-use crate::util::*;
 use std::mem::MaybeUninit;
+
+use crate::{tiling::PlaneRegionMut, util::*};
 
 // Note: Input coeffs are mutable since the assembly uses them as a scratchpad
 pub type InvTxfmFunc =
@@ -78,14 +78,16 @@ pub fn call_inverse_hbd_func<T: Pixel>(
 
 #[cfg(test)]
 pub mod test {
-  use super::*;
-  use crate::context::av1_get_coded_tx_size;
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::frame::{AsRegion, Plane};
-  use crate::scan_order::av1_scan_orders;
-  use crate::transform::TxSize::*;
-  use crate::transform::*;
   use rand::{random, rng, Rng};
+
+  use super::*;
+  use crate::{
+    context::av1_get_coded_tx_size,
+    cpu_features::CpuFeatureLevel,
+    frame::{AsRegion, Plane},
+    scan_order::av1_scan_orders,
+    transform::{TxSize::*, *},
+  };
 
   pub fn pick_eob<T: Coefficient>(
     coeffs: &mut [T], tx_size: TxSize, tx_type: TxType, sub_h: usize,

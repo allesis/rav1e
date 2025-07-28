@@ -7,10 +7,11 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::decoder::VideoDetails;
+use std::{io::Write, slice};
+
 use rav1e::prelude::*;
-use std::io::Write;
-use std::slice;
+
+use crate::decoder::VideoDetails;
 
 #[profiling::function]
 pub fn write_y4m_frame<T: Pixel>(

@@ -7,11 +7,14 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use std::collections::{HashMap, VecDeque};
-use std::io::Write;
-use std::mem::MaybeUninit;
-use std::sync::{Arc, Mutex};
-use std::{fmt, io, mem};
+use std::{
+  collections::{HashMap, VecDeque},
+  fmt, io,
+  io::Write,
+  mem,
+  mem::MaybeUninit,
+  sync::{Arc, Mutex},
+};
 
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
@@ -19,36 +22,34 @@ use bitstream_io::{BigEndian, BitWrite2, BitWriter};
 use num_traits::{ToBytes, ToPrimitive};
 use rayon::iter::*;
 
-use crate::activity::*;
-use crate::api::*;
-use crate::cdef::*;
-use crate::context::*;
-use crate::deblock::*;
-use crate::ec::*;
-use crate::frame::*;
-use crate::hash::hashcoeffs;
-use crate::header::*;
-use crate::lrf::*;
-use crate::mc::{FilterMode, MotionVector};
-use crate::me::*;
-use crate::partition::PartitionType::*;
-use crate::partition::RefType::*;
-use crate::partition::*;
-use crate::predict::{
-  AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
+use crate::{
+  activity::*,
+  api::*,
+  cdef::*,
+  context::*,
+  deblock::*,
+  ec::*,
+  frame::*,
+  hash::hashcoeffs,
+  header::*,
+  lrf::*,
+  mc::{FilterMode, MotionVector},
+  me::*,
+  partition::{PartitionType::*, RefType::*, *},
+  predict::{
+    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+  },
+  quantize::*,
+  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
+  rdo::*,
+  segmentation::*,
+  serialize::{Deserialize, Serialize},
+  stats::EncoderStats,
+  tiling::*,
+  transform::*,
+  util::*,
+  wasm_bindgen::*,
 };
-use crate::quantize::*;
-use crate::rate::{
-  FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters,
-};
-use crate::rdo::*;
-use crate::segmentation::*;
-use crate::serialize::{Deserialize, Serialize};
-use crate::stats::EncoderStats;
-use crate::tiling::*;
-use crate::transform::*;
-use crate::util::*;
-use crate::wasm_bindgen::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

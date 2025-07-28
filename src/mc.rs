@@ -17,13 +17,11 @@ cfg_if::cfg_if! {
   }
 }
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::frame::*;
-use crate::tiling::*;
-use crate::util::*;
+use std::ops;
 
 use simd_helpers::cold_for_target_arch;
-use std::ops;
+
+use crate::{cpu_features::CpuFeatureLevel, frame::*, tiling::*, util::*};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct MotionVector {
@@ -219,8 +217,9 @@ const SUBPEL_FILTERS: [[[i32; SUBPEL_FILTER_SIZE]; 16]; 6] = [
 ];
 
 pub(crate) mod rust {
-  use super::*;
   use num_traits::*;
+
+  use super::*;
 
   unsafe fn run_filter<T: AsPrimitive<i32>>(
     src: *const T, stride: usize, filter: [i32; 8],

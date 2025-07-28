@@ -7,15 +7,19 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::*;
-use crate::test_encode_decode::{compare_plane, DecodeResult, TestDecoder};
-use crate::util::Pixel;
+use std::{
+  collections::VecDeque, ffi::CStr, marker::PhantomData, mem::MaybeUninit,
+  ptr, slice,
+};
+
 use aom_sys::*;
 use log::debug;
-use std::collections::VecDeque;
-use std::ffi::CStr;
-use std::marker::PhantomData;
-use std::{mem::MaybeUninit, ptr, slice};
+
+use super::*;
+use crate::{
+  test_encode_decode::{compare_plane, DecodeResult, TestDecoder},
+  util::Pixel,
+};
 
 pub(crate) struct AomDecoder<T: Pixel> {
   dec: aom_codec_ctx,

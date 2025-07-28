@@ -7,16 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::{iter::FusedIterator, marker::PhantomData, ops::DerefMut};
+
 use super::*;
-
-use crate::context::*;
-use crate::encoder::*;
-use crate::me::WriteGuardMEStats;
-use crate::util::*;
-
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::ops::DerefMut;
+use crate::{context::*, encoder::*, me::WriteGuardMEStats, util::*};
 
 pub const MAX_TILE_WIDTH: usize = 4096;
 pub const MAX_TILE_AREA: usize = 4096 * 2304;
@@ -266,12 +260,10 @@ impl<T: Pixel> FusedIterator for TileContextIterMut<'_, T> {}
 
 #[cfg(test)]
 pub mod test {
-  use super::*;
-  use crate::api::*;
-  use crate::lrf::*;
-  use crate::mc::MotionVector;
-  use crate::predict::PredictionMode;
   use std::sync::Arc;
+
+  use super::*;
+  use crate::{api::*, lrf::*, mc::MotionVector, predict::PredictionMode};
 
   #[test]
   fn test_tiling_info_from_tile_count() {

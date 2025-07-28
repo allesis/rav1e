@@ -18,17 +18,21 @@ mod kv;
 mod muxer;
 mod stats;
 
-use crate::common::*;
-use crate::error::*;
-use crate::stats::*;
-use rav1e::config::CpuFeatureLevel;
-use rav1e::prelude::*;
+use std::{
+  fs::File,
+  io::{Read, Seek, Write},
+  sync::Arc,
+};
 
-use crate::decoder::{Decoder, FrameBuilder, VideoDetails};
-use crate::muxer::*;
-use std::fs::File;
-use std::io::{Read, Seek, Write};
-use std::sync::Arc;
+use rav1e::{config::CpuFeatureLevel, prelude::*};
+
+use crate::{
+  common::*,
+  decoder::{Decoder, FrameBuilder, VideoDetails},
+  error::*,
+  muxer::*,
+  stats::*,
+};
 
 impl<T: Pixel> FrameBuilder<T> for FrameSender<T> {
   fn new_frame(&self) -> Frame<T> {

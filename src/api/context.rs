@@ -8,19 +8,16 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![deny(missing_docs)]
 
-use std::fmt;
-use std::io;
-use std::sync::Arc;
+use std::{fmt, io, sync::Arc};
 
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 
-use crate::api::color::*;
-use crate::api::config::*;
-use crate::api::internal::*;
-use crate::api::util::*;
-use crate::encoder::*;
-use crate::frame::*;
-use crate::util::Pixel;
+use crate::{
+  api::{color::*, config::*, internal::*, util::*},
+  encoder::*,
+  frame::*,
+  util::Pixel,
+};
 
 /// The encoder context.
 ///

@@ -7,10 +7,8 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::util::*;
-
 use super::TxType;
+use crate::{cpu_features::CpuFeatureLevel, util::*};
 
 cfg_if::cfg_if! {
   if #[cfg(nasm_x86_64)] {
@@ -23,12 +21,14 @@ cfg_if::cfg_if! {
 }
 
 pub mod rust {
-  use super::*;
   use std::mem::MaybeUninit;
 
-  use crate::transform::forward_shared::*;
-  use crate::transform::{av1_round_shift_array, valid_av1_transform, TxSize};
   use simd_helpers::cold_for_target_arch;
+
+  use super::*;
+  use crate::transform::{
+    av1_round_shift_array, forward_shared::*, valid_av1_transform, TxSize,
+  };
 
   type TxfmFunc = fn(&mut [i32]);
 

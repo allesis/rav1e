@@ -7,13 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::dist::*;
-use crate::encoder::IMPORTANCE_BLOCK_SIZE;
-use crate::partition::BlockSize;
-use crate::rdo::DistortionScale;
-use crate::tiling::PlaneRegion;
-use crate::util::*;
+use crate::{
+  cpu_features::CpuFeatureLevel, dist::*, encoder::IMPORTANCE_BLOCK_SIZE,
+  partition::BlockSize, rdo::DistortionScale, tiling::PlaneRegion, util::*,
+};
 
 type WeightedSseFn = unsafe extern fn(
   src: *const u8,

@@ -18,20 +18,23 @@ mod kv;
 mod muxer;
 mod stats;
 
-use crate::common::*;
-use crate::error::*;
-use crate::stats::*;
-use rav1e::config::CpuFeatureLevel;
-use rav1e::hash::*;
-use rav1e::prelude::*;
+use std::{
+  fs::File,
+  hash::{DefaultHasher, Hash},
+  io::{Read, Seek, Write},
+  process::exit,
+  sync::Arc,
+};
 
-use crate::decoder::{Decoder, FrameBuilder, VideoDetails};
-use crate::muxer::*;
-use std::fs::File;
-use std::hash::{DefaultHasher, Hash};
-use std::io::{Read, Seek, Write};
-use std::process::exit;
-use std::sync::Arc;
+use rav1e::{config::CpuFeatureLevel, hash::*, prelude::*};
+
+use crate::{
+  common::*,
+  decoder::{Decoder, FrameBuilder, VideoDetails},
+  error::*,
+  muxer::*,
+  stats::*,
+};
 
 impl<T: Pixel> FrameBuilder<T> for Context<T> {
   fn new_frame(&self) -> Frame<T> {

@@ -7,11 +7,7 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::TxSize;
-use super::TxType;
-
-use super::HTX_TAB;
-use super::VTX_TAB;
+use super::{TxSize, TxType, HTX_TAB, VTX_TAB};
 
 pub type TxfmShift = [i8; 3];
 pub type TxfmShifts = [TxfmShift; 3];

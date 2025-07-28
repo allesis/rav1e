@@ -12,15 +12,18 @@
 use criterion::*;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use rav1e::bench::cpu_features::*;
-use rav1e::bench::dist;
-use rav1e::bench::frame::*;
-use rav1e::bench::partition::BlockSize::*;
-use rav1e::bench::partition::*;
-use rav1e::bench::rdo::DistortionScale;
-use rav1e::bench::tiling::*;
-use rav1e::bench::util::Aligned;
-use rav1e::Pixel;
+use rav1e::{
+  bench::{
+    cpu_features::*,
+    dist,
+    frame::*,
+    partition::{BlockSize::*, *},
+    rdo::DistortionScale,
+    tiling::*,
+    util::Aligned,
+  },
+  Pixel,
+};
 
 const DIST_BENCH_SET: &[(BlockSize, usize)] = &[
   (BLOCK_4X4, 8),

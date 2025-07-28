@@ -7,11 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::{fmt, time::Instant};
+
 use av_metrics::video::*;
-use rav1e::data::EncoderStats;
-use rav1e::prelude::*;
-use std::fmt;
-use std::time::Instant;
+use rav1e::{data::EncoderStats, prelude::*};
 
 #[derive(Debug, Clone)]
 pub struct FrameSummary {

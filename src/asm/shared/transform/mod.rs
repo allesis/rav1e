@@ -10,8 +10,9 @@
 pub mod forward;
 pub mod inverse;
 
-use crate::transform::*;
 use std::ops::Index;
+
+use crate::transform::*;
 
 impl<T> Index<TxSize> for [T; TxSize::TX_SIZES_ALL] {
   type Output = T;

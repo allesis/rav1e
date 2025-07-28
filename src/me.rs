@@ -7,25 +7,29 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::api::InterConfig;
-use crate::context::{
-  BlockOffset, PlaneBlockOffset, SuperBlockOffset, TileBlockOffset,
-  TileSuperBlockOffset, MAX_SB_SIZE_LOG2, MIB_SIZE_LOG2, MI_SIZE,
-  MI_SIZE_LOG2, SB_SIZE,
+use std::{
+  ops::{Index, IndexMut},
+  sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
-use crate::dist::*;
-use crate::frame::*;
-use crate::mc::MotionVector;
-use crate::partition::*;
-use crate::predict::PredictionMode;
-use crate::tiling::*;
-use crate::util::ILog;
-use crate::util::{clamp, Pixel};
-use crate::FrameInvariants;
 
 use arrayvec::*;
-use std::ops::{Index, IndexMut};
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use crate::{
+  api::InterConfig,
+  context::{
+    BlockOffset, PlaneBlockOffset, SuperBlockOffset, TileBlockOffset,
+    TileSuperBlockOffset, MAX_SB_SIZE_LOG2, MIB_SIZE_LOG2, MI_SIZE,
+    MI_SIZE_LOG2, SB_SIZE,
+  },
+  dist::*,
+  frame::*,
+  mc::MotionVector,
+  partition::*,
+  predict::PredictionMode,
+  tiling::*,
+  util::{clamp, ILog, Pixel},
+  FrameInvariants,
+};
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct MEStats {

@@ -7,22 +7,24 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::context::MAX_TX_SIZE;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::partition::{BlockSize, IntraEdge};
-use crate::predict::rust::{
-  dr_intra_derivative, select_ief_strength, select_ief_upsample,
-};
-use crate::predict::{
-  rust, IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
-};
-use crate::tiling::{PlaneRegion, PlaneRegionMut};
-use crate::transform::TxSize;
-use crate::{Pixel, PixelType};
-use libc;
-use libc::{c_int, ptrdiff_t};
 use std::mem::MaybeUninit;
+
+use libc::{self, c_int, ptrdiff_t};
 use PixelType::{U16, U8};
+
+use crate::{
+  context::MAX_TX_SIZE,
+  cpu_features::CpuFeatureLevel,
+  partition::{BlockSize, IntraEdge},
+  predict::{
+    rust,
+    rust::{dr_intra_derivative, select_ief_strength, select_ief_upsample},
+    IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
+  },
+  tiling::{PlaneRegion, PlaneRegionMut},
+  transform::TxSize,
+  Pixel, PixelType,
+};
 
 macro_rules! decl_cfl_ac_fn {
   ($($f:ident),+) => {

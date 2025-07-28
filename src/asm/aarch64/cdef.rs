@@ -7,11 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cdef::*;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::frame::*;
-use crate::tiling::PlaneRegionMut;
-use crate::util::*;
+use crate::{
+  cdef::*, cpu_features::CpuFeatureLevel, frame::*, tiling::PlaneRegionMut,
+  util::*,
+};
 
 type CdefPaddingFn = unsafe extern fn(
   tmp: *mut u16,

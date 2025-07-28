@@ -7,22 +7,21 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::error::*;
-use crate::muxer::{create_muxer, Muxer};
-use crate::stats::MetricsEnabled;
-use clap::builder::styling::AnsiColor;
-use clap::builder::Styles;
-use clap::{CommandFactory, Parser as Clap, Subcommand};
+use std::{fs::File, io, io::prelude::*, path::PathBuf, sync::OnceLock};
+
+use clap::{
+  builder::{styling::AnsiColor, Styles},
+  CommandFactory, Parser as Clap, Subcommand,
+};
 use clap_complete::{generate, Shell};
-use rav1e::prelude::*;
+use rav1e::{config::CpuFeatureLevel, prelude::*};
 use scan_fmt::scan_fmt;
 
-use rav1e::config::CpuFeatureLevel;
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
-use std::path::PathBuf;
-use std::sync::OnceLock;
+use crate::{
+  error::*,
+  muxer::{create_muxer, Muxer},
+  stats::MetricsEnabled,
+};
 
 pub mod built_info {
   // The file has been placed there by the build script.

@@ -12,8 +12,10 @@
 
 #[allow(unused_imports)]
 use std::env;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+  fs,
+  path::{Path, PathBuf},
+};
 
 #[allow(dead_code)]
 fn rerun_dir<P: AsRef<Path>>(dir: P) {
@@ -32,8 +34,7 @@ fn rerun_dir<P: AsRef<Path>>(dir: P) {
 fn hash_changed(
   files: &[&str], out_dir: &str, config: &Path,
 ) -> Option<([u8; 8], PathBuf)> {
-  use std::collections::hash_map::DefaultHasher;
-  use std::hash::Hasher;
+  use std::{collections::hash_map::DefaultHasher, hash::Hasher};
 
   let mut hasher = DefaultHasher::new();
 

@@ -7,11 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cdef::*;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::frame::*;
-use crate::tiling::PlaneRegionMut;
-use crate::util::*;
+use crate::{
+  cdef::*, cpu_features::CpuFeatureLevel, frame::*, tiling::PlaneRegionMut,
+  util::*,
+};
 
 type CdefFilterFn = unsafe extern fn(
   dst: *mut u8,
@@ -292,10 +291,12 @@ cpu_function_lookup_table!(
 #[cfg(test)]
 mod test {
   pub const CDEF_HAVE_NONE: u8 = 0;
-  use super::*;
+  use std::str::FromStr;
+
   use interpolate_name::interpolate_test;
   use rand::random;
-  use std::str::FromStr;
+
+  use super::*;
 
   macro_rules! test_cdef_filter_block {
     ($(($XDEC:expr, $YDEC:expr)),*, $OPT:ident, $OPTLIT:literal) => {

@@ -7,23 +7,26 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::*;
+use std::{
+  ops::{Index, IndexMut},
+  sync::Arc,
+};
 
-use crate::context::*;
-use crate::encoder::*;
-use crate::frame::*;
-use crate::lrf::{IntegralImageBuffer, SOLVE_IMAGE_SIZE};
-use crate::mc::MotionVector;
-use crate::me::FrameMEStats;
-use crate::me::WriteGuardMEStats;
-use crate::partition::{RefType, REF_FRAMES};
-use crate::predict::{InterCompoundBuffers, PredictionMode};
-use crate::quantize::*;
-use crate::rdo::*;
-use crate::stats::EncoderStats;
-use crate::util::*;
-use std::ops::{Index, IndexMut};
-use std::sync::Arc;
+use super::*;
+use crate::{
+  context::*,
+  encoder::*,
+  frame::*,
+  lrf::{IntegralImageBuffer, SOLVE_IMAGE_SIZE},
+  mc::MotionVector,
+  me::{FrameMEStats, WriteGuardMEStats},
+  partition::{RefType, REF_FRAMES},
+  predict::{InterCompoundBuffers, PredictionMode},
+  quantize::*,
+  rdo::*,
+  stats::EncoderStats,
+  util::*,
+};
 
 /// Tiled view of `FrameState`
 ///

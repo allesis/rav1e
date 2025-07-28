@@ -13,14 +13,14 @@
 #[macro_use]
 pub mod forward_shared;
 
-pub use self::forward::forward_transform;
-pub use self::inverse::inverse_transform_add;
-
-use crate::context::MI_SIZE_LOG2;
-use crate::partition::{BlockSize, BlockSize::*};
-use crate::util::*;
-
 use TxSize::*;
+
+pub use self::{forward::forward_transform, inverse::inverse_transform_add};
+use crate::{
+  context::MI_SIZE_LOG2,
+  partition::{BlockSize, BlockSize::*},
+  util::*,
+};
 
 pub mod forward;
 pub mod inverse;
@@ -468,13 +468,14 @@ pub fn get_valid_txfm_types(tx_size: TxSize) -> &'static [TxType] {
 
 #[cfg(test)]
 mod test {
-  use super::TxType::*;
-  use super::*;
-  use crate::context::av1_get_coded_tx_size;
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::frame::*;
-  use rand::random;
   use std::mem::MaybeUninit;
+
+  use rand::random;
+
+  use super::{TxType::*, *};
+  use crate::{
+    context::av1_get_coded_tx_size, cpu_features::CpuFeatureLevel, frame::*,
+  };
 
   fn test_roundtrip<T: Pixel>(
     tx_size: TxSize, tx_type: TxType, tolerance: i16,

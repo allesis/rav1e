@@ -7,18 +7,22 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::api::FrameType;
-use crate::color::ChromaSampling::Cs400;
-use crate::context::*;
-use crate::encoder::FrameInvariants;
-use crate::partition::RefType::*;
-use crate::predict::PredictionMode::*;
-use crate::quantize::*;
-use crate::tiling::*;
-use crate::util::{clamp, ILog, Pixel};
-use crate::DeblockState;
-use rayon::iter::*;
 use std::cmp;
+
+use rayon::iter::*;
+
+use crate::{
+  api::FrameType,
+  color::ChromaSampling::Cs400,
+  context::*,
+  encoder::FrameInvariants,
+  partition::RefType::*,
+  predict::PredictionMode::*,
+  quantize::*,
+  tiling::*,
+  util::{clamp, ILog, Pixel},
+  DeblockState,
+};
 
 fn deblock_adjusted_level(
   deblock: &DeblockState, block: &Block, pli: usize, vertical: bool,

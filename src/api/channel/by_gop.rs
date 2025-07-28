@@ -7,20 +7,16 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::api::channel::data::*;
-use crate::api::config::*;
-use crate::api::util::*;
-use crate::api::EncoderConfig;
-use crate::api::InterConfig;
+use std::{collections::BTreeMap, sync::Arc};
 
+use av_scenechange::SceneChangeDetector;
 use crossbeam::channel::*;
 
-use crate::frame::*;
-use crate::util::Pixel;
-use av_scenechange::SceneChangeDetector;
-
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use crate::{
+  api::{channel::data::*, config::*, util::*, EncoderConfig, InterConfig},
+  frame::*,
+  util::Pixel,
+};
 
 struct SubGop<T: Pixel> {
   frames: Vec<Arc<Frame<T>>>,

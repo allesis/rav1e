@@ -7,13 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::tiling::PlaneRegionMut;
-use crate::transform::inverse::*;
-use crate::transform::*;
-use crate::{Pixel, PixelType};
-
-use crate::asm::shared::transform::inverse::*;
+use crate::{
+  asm::shared::transform::inverse::*,
+  cpu_features::CpuFeatureLevel,
+  tiling::PlaneRegionMut,
+  transform::{inverse::*, *},
+  Pixel, PixelType,
+};
 
 pub fn inverse_transform_add<T: Pixel>(
   input: &[T::Coeff], output: &mut PlaneRegionMut<'_, T>, eob: u16,

@@ -41,13 +41,15 @@
 #[macro_use]
 extern crate pretty_assertions;
 
-pub use crate::api::color;
-pub use crate::api::{
-  Config, Context, EncoderConfig, EncoderStatus, InvalidConfig, Packet,
-};
 use crate::encoder::*;
-pub use crate::frame::Frame;
-pub use crate::util::{CastFromPrimitive, Pixel, PixelType};
+pub use crate::{
+  api::{
+    color, Config, Context, EncoderConfig, EncoderStatus, InvalidConfig,
+    Packet,
+  },
+  frame::Frame,
+  util::{CastFromPrimitive, Pixel, PixelType},
+};
 
 pub(crate) mod built_info {
   // The file has been placed there by the build script.
@@ -114,44 +116,46 @@ mod token_cdfs;
 
 mod api;
 mod frame;
-mod header;
 pub mod hash;
+mod header;
 
 /// Commonly used types and traits.
 pub mod prelude {
-  pub use crate::api::*;
-  pub use crate::encoder::{Sequence, Tune};
-  pub use crate::frame::{
-    Frame, FrameParameters, FrameTypeOverride, Plane, PlaneConfig,
+  pub use crate::{
+    api::*,
+    encoder::{Sequence, Tune},
+    frame::{Frame, FrameParameters, FrameTypeOverride, Plane, PlaneConfig},
+    hash::hashframe,
+    partition::BlockSize,
+    predict::PredictionMode,
+    transform::TxType,
+    util::{CastFromPrimitive, Pixel, PixelType},
   };
-  pub use crate::partition::BlockSize;
-  pub use crate::predict::PredictionMode;
-  pub use crate::transform::TxType;
-  pub use crate::util::{CastFromPrimitive, Pixel, PixelType};
-  pub use crate::hash::hashframe;
 }
 
 /// Basic data structures
 pub mod data {
-  pub use crate::api::{
-    ChromaticityPoint, EncoderStatus, FrameType, Packet, Rational,
+  pub use crate::{
+    api::{ChromaticityPoint, EncoderStatus, FrameType, Packet, Rational},
+    frame::{Frame, FrameParameters},
+    stats::EncoderStats,
+    util::{CastFromPrimitive, Pixel, PixelType},
   };
-  pub use crate::frame::{Frame, FrameParameters};
-  pub use crate::stats::EncoderStats;
-  pub use crate::util::{CastFromPrimitive, Pixel, PixelType};
 }
 
 /// Encoder configuration and settings
 pub mod config {
-  pub use crate::api::config::{
-    GrainTableSegment, NoiseGenArgs, TransferFunction, NUM_UV_COEFFS,
-    NUM_UV_POINTS, NUM_Y_COEFFS, NUM_Y_POINTS,
+  pub use crate::{
+    api::{
+      config::{
+        GrainTableSegment, NoiseGenArgs, TransferFunction, NUM_UV_COEFFS,
+        NUM_UV_POINTS, NUM_Y_COEFFS, NUM_Y_POINTS,
+      },
+      Config, EncoderConfig, InvalidConfig, PredictionModesSetting,
+      RateControlConfig, RateControlError, RateControlSummary, SpeedSettings,
+    },
+    cpu_features::CpuFeatureLevel,
   };
-  pub use crate::api::{
-    Config, EncoderConfig, InvalidConfig, PredictionModesSetting,
-    RateControlConfig, RateControlError, RateControlSummary, SpeedSettings,
-  };
-  pub use crate::cpu_features::CpuFeatureLevel;
 }
 
 /// Version information
@@ -273,8 +277,8 @@ pub mod version {
   }
 }
 #[cfg(all(
-    any(test, fuzzing),
-    any(feature = "decode_test", feature = "decode_test_dav1d")
+  any(test, fuzzing),
+  any(feature = "decode_test", feature = "decode_test_dav1d")
 ))]
 mod test_encode_decode;
 

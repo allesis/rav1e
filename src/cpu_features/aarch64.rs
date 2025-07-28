@@ -7,9 +7,9 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::{env, str::FromStr};
+
 use arg_enum_proc_macro::ArgEnum;
-use std::env;
-use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, ArgEnum)]
 pub enum CpuFeatureLevel {

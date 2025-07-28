@@ -19,13 +19,18 @@ cfg_if::cfg_if! {
   }
 }
 
+use std::{
+  mem,
+  num::{NonZeroU16, NonZeroU32, NonZeroU64},
+};
+
 pub use tables::*;
 
-use crate::scan_order::av1_scan_orders;
-use crate::transform::{TxSize, TxType};
-use crate::util::*;
-use std::mem;
-use std::num::{NonZeroU16, NonZeroU32, NonZeroU64};
+use crate::{
+  scan_order::av1_scan_orders,
+  transform::{TxSize, TxType},
+  util::*,
+};
 
 pub fn get_log_tx_scale(tx_size: TxSize) -> usize {
   let num_pixels = tx_size.area();
@@ -356,9 +361,10 @@ impl QuantizationContext {
 }
 
 pub mod rust {
+  use std::mem::MaybeUninit;
+
   use super::*;
   use crate::cpu_features::CpuFeatureLevel;
-  use std::mem::MaybeUninit;
 
   pub fn dequantize<T: Coefficient>(
     qindex: u8, coeffs: &[T], _eob: u16, rcoeffs: &mut [MaybeUninit<T>],

@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
-use v_frame::frame::Frame;
-use v_frame::prelude::Pixel;
+
+use serde::{Deserialize, Serialize};
+use v_frame::{frame::Frame, prelude::Pixel};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HashFrame<T: Pixel>(Frame<T>);
 

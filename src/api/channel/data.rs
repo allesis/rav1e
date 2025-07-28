@@ -7,20 +7,18 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::api::color::*;
-use crate::api::config::EncoderConfig;
-use crate::api::context::RcData;
-use crate::api::util::*;
-use crate::encoder::*;
-use crate::frame::*;
-use crate::util::Pixel;
+use std::{io, sync::Arc};
 
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use crossbeam::channel::{Receiver, Sender};
 use thiserror::Error;
 
-use std::io;
-use std::sync::Arc;
+use crate::{
+  api::{color::*, config::EncoderConfig, context::RcData, util::*},
+  encoder::*,
+  frame::*,
+  util::Pixel,
+};
 
 /// An error returned from the `send` methods.
 ///

@@ -11,14 +11,11 @@ mod ivf;
 use self::ivf::IvfMuxer;
 
 mod y4m;
-pub use self::y4m::write_y4m_frame;
+use std::{ffi::OsStr, io, path::Path};
 
 use rav1e::prelude::*;
 
-use std::ffi::OsStr;
-use std::io;
-use std::path::Path;
-
+pub use self::y4m::write_y4m_frame;
 use crate::error::*;
 
 pub trait Muxer: Send {

@@ -7,12 +7,14 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::fmt;
+
 use num_derive::*;
 
-use crate::partition::BlockSize;
-use crate::serialize::{Deserialize, Serialize};
-
-use std::fmt;
+use crate::{
+  partition::BlockSize,
+  serialize::{Deserialize, Serialize},
+};
 
 // NOTE: Add Structures at the end.
 /// Contains the speed settings.

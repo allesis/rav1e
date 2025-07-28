@@ -7,11 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::serialize::*;
-use crate::wasm_bindgen::*;
-
 use arg_enum_proc_macro::ArgEnum;
 use num_derive::FromPrimitive;
+
+use crate::{serialize::*, wasm_bindgen::*};
 
 /// Sample position for subsampled chroma
 #[wasm_bindgen]

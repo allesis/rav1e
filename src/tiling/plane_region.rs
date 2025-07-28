@@ -9,15 +9,15 @@
 
 #![allow(clippy::iter_nth_zero)]
 
-use crate::context::*;
-use crate::frame::*;
-use crate::util::*;
+use std::{
+  hash::Hash,
+  iter::FusedIterator,
+  marker::PhantomData,
+  ops::{Index, IndexMut},
+  slice,
+};
 
-use std::iter::FusedIterator;
-use std::marker::PhantomData;
-use std::ops::{Index, IndexMut};
-use std::slice;
-use std::hash::Hash;
+use crate::{context::*, frame::*, util::*};
 
 /// Rectangle of a plane region, in pixels
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
@@ -122,7 +122,7 @@ pub struct PlaneRegion<'a, T: Pixel> {
   phantom: PhantomData<&'a T>,
 }
 
-impl<T: Pixel> Hash for PlaneRegion<'_,T> {
+impl<T: Pixel> Hash for PlaneRegion<'_, T> {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
     // Data, rect, and phantom are all hashable
     // So we can hash them directly

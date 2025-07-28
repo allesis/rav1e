@@ -7,15 +7,17 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::partition::BlockSize;
-use crate::predict::PREDICTION_MODES;
-use crate::serialize::{Deserialize, Serialize};
-use crate::transform::TX_TYPES;
+use std::ops::{Add, AddAssign};
 
 #[cfg(feature = "serialize")]
 use serde_big_array::BigArray;
 
-use std::ops::{Add, AddAssign};
+use crate::{
+  partition::BlockSize,
+  predict::PREDICTION_MODES,
+  serialize::{Deserialize, Serialize},
+  transform::TX_TYPES,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncoderStats {

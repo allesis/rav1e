@@ -7,13 +7,11 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-pub use self::cdef_dist::*;
-pub use self::sse::*;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::dist::*;
-use crate::partition::BlockSize;
-use crate::tiling::*;
-use crate::util::*;
+pub use self::{cdef_dist::*, sse::*};
+use crate::{
+  cpu_features::CpuFeatureLevel, dist::*, partition::BlockSize, tiling::*,
+  util::*,
+};
 
 mod cdef_dist;
 mod sse;
@@ -730,10 +728,12 @@ cpu_function_lookup_table!(
 
 #[cfg(test)]
 mod test {
+  use std::str::FromStr;
+
+  use rand::random;
+
   use super::*;
   use crate::frame::{AsRegion, Plane};
-  use rand::random;
-  use std::str::FromStr;
 
   macro_rules! test_dist_fns {
     ($(($W:expr, $H:expr)),*, $DIST_TY:ident, $BD:expr, $OPT:ident, $OPTLIT:tt) => {

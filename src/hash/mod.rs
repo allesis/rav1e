@@ -1,9 +1,12 @@
 pub mod hashframe;
+use std::{
+  collections::hash_map::DefaultHasher,
+  hash::{Hash, Hasher},
+};
+
 use num_traits::ToPrimitive;
 
 use crate::Pixel;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 pub fn hashcoeffs<T: Pixel>(
   coeffs: &mut [<T as Pixel>::Coeff], eob: u16, width: usize, height: usize,

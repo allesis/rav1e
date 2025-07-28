@@ -10,18 +10,17 @@
 // Fuzzing only uses a subset of these.
 #![cfg_attr(fuzzing, allow(unused))]
 
-use crate::color::ChromaSampling;
-
-use crate::api::config::GrainTableSegment;
-use crate::util::Pixel;
-use crate::*;
+use std::collections::VecDeque;
 
 use arrayvec::ArrayVec;
 use interpolate_name::interpolate_test;
 use log::debug;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use std::collections::VecDeque;
+
+use crate::{
+  api::config::GrainTableSegment, color::ChromaSampling, util::Pixel, *,
+};
 
 #[cfg(feature = "decode_test")]
 mod aom;

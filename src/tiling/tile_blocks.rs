@@ -7,16 +7,17 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::context::*;
-use crate::mc::MotionVector;
-use crate::partition::*;
-use crate::predict::PredictionMode;
-use crate::transform::*;
+use std::{
+  cmp,
+  marker::PhantomData,
+  ops::{Index, IndexMut},
+  slice,
+};
 
-use std::cmp;
-use std::marker::PhantomData;
-use std::ops::{Index, IndexMut};
-use std::slice;
+use crate::{
+  context::*, mc::MotionVector, partition::*, predict::PredictionMode,
+  transform::*,
+};
 
 /// Tiled view of `FrameBlocks`
 #[derive(Debug)]

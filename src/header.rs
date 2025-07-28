@@ -7,25 +7,21 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::api::*;
-use crate::context::*;
-use crate::ec::*;
-use crate::lrf::*;
-use crate::partition::*;
-use crate::tiling::MAX_TILE_WIDTH;
-use crate::util::Fixed;
-use crate::util::Pixel;
-
-use crate::DeblockState;
-use crate::FrameInvariants;
-use crate::FrameState;
-use crate::SegmentationState;
-use crate::Sequence;
+use std::io;
 
 use arrayvec::ArrayVec;
 use bitstream_io::{BigEndian, BitWrite, BitWriter, LittleEndian};
 
-use std::io;
+use crate::{
+  api::*,
+  context::*,
+  ec::*,
+  lrf::*,
+  partition::*,
+  tiling::MAX_TILE_WIDTH,
+  util::{Fixed, Pixel},
+  DeblockState, FrameInvariants, FrameState, SegmentationState, Sequence,
+};
 
 pub const PRIMARY_REF_NONE: u32 = 7;
 pub const ALL_REF_FRAMES_MASK: u32 = (1 << REF_FRAMES) - 1;
@@ -1210,11 +1206,11 @@ impl<W: io::Write> UncompressedHeader for BitWriter<W, BigEndian> {
 
 #[cfg(test)]
 mod tests {
-  use super::ULEB128Writer;
   use bitstream_io::{BigEndian, BitWriter};
-  use nom::error::Error;
-  use nom::IResult;
+  use nom::{error::Error, IResult};
   use quickcheck::quickcheck;
+
+  use super::ULEB128Writer;
 
   fn leb128(mut input: &[u8]) -> IResult<&[u8], u64, Error<&[u8]>> {
     use nom::bytes::complete::take;
