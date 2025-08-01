@@ -1593,7 +1593,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       fi.cpu_feature_level,
     );
   }
-  let hash = hashcoeffs::<T>(rcoeffs, eob, 0, 0);
+  let hash =
+    hashcoeffs::<T>(rcoeffs, eob, tx_type, tx_size.width(), tx_size.height());
   let back_eob = eob;
 
   // println!("HASH {:?} -> CF {:?}", hash, rcoeffs);

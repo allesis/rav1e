@@ -6,10 +6,11 @@ use std::{
 
 use num_traits::ToPrimitive;
 
-use crate::Pixel;
+use crate::{Pixel, prelude::TxType};
 
 pub fn hashcoeffs<T: Pixel>(
-  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, width: usize, height: usize,
+  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, tx_type: TxType, width: usize,
+  height: usize,
 ) -> u64 {
   let mut hasher = DefaultHasher::new();
   coeffs.iter().for_each(|coeff| {
@@ -24,6 +25,7 @@ pub fn hashcoeffs<T: Pixel>(
     // WARN: Will never subtract with overflow since eob > 0
     (eob - 1).hash(&mut hasher);
   }
+  (tx_type as usize).hash(&mut hasher);
   width.hash(&mut hasher);
   height.hash(&mut hasher);
   let hash = hasher.finish();
