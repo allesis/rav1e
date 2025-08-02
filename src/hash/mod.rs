@@ -19,15 +19,20 @@ pub fn hashcoeffs<T: Pixel>(
       coeff.to_i32().unwrap().hash(&mut hasher)
     }
   });
-  if eob == 0 {
+  /* if eob == 0 {
     eob.hash(&mut hasher);
   } else {
     // WARN: Will never subtract with overflow since eob > 0
     (eob - 1).hash(&mut hasher);
-  }
-  (tx_type as usize).hash(&mut hasher);
-  width.hash(&mut hasher);
-  height.hash(&mut hasher);
+  }*/
+  //(tx_type as usize).hash(&mut hasher);
+  // width.hash(&mut hasher);
+  //height.hash(&mut hasher);
+  /* println!(
+    "{:?}, {:?}, {:?}, {:?}, {:?}",
+    width, height, eob, tx_type as usize, coeffs
+  );*/
   let hash = hasher.finish();
+  //println!("{:?}", hash);
   hash
 }

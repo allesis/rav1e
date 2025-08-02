@@ -13,7 +13,7 @@ use std::{
   collections::{BTreeMap, BTreeSet, HashMap},
   env, fs,
   path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, RwLock},
 };
 
 use arrayvec::ArrayVec;
@@ -22,7 +22,7 @@ use av_scenechange::SceneChangeDetector;
 use crate::{
   activity::ActivityMask,
   api::{
-    lookahead::*, EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35,
+    EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35, lookahead::*,
   },
   color::ChromaSampling::Cs400,
   dist::get_satd,
@@ -30,8 +30,8 @@ use crate::{
   frame::*,
   partition::*,
   rate::{
-    RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,
-    FRAME_SUBTYPE_SEF,
+    FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
+    RCState,
   },
   stats::EncoderStats,
   tiling::Area,
@@ -262,7 +262,8 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
-  hashmap: Arc<Mutex<HashMap<u64, HashObject>>>,
+  hashmap: Arc<RwLock<HashMap<u64, HashObject>>>,
+  new_hashmap: Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>,
 }
 
 pub struct HashObject {
@@ -340,7 +341,14 @@ impl<T: Pixel> ContextInner<T> {
       next_lookahead_output_frameno: 0,
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
-      hashmap: Arc::new(Mutex::new(HashMap::new())),
+      hashmap: Arc::new(RwLock::new(HashMap::new())),
+      new_hashmap: Arc::new(Mutex::new(vec![
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+      ])),
     }
   }
 
@@ -1400,8 +1408,13 @@ impl<T: Pixel> ContextInner<T> {
 
     if self.rc_state.needs_trial_encode(fti) {
       let mut trial_fs = frame_data.fs.clone();
-      let data =
-        encode_frame(&frame_data.fi, &mut trial_fs, &self.inter_cfg, None);
+      let data = encode_frame(
+        &frame_data.fi,
+        &mut trial_fs,
+        &self.inter_cfg,
+        None,
+        None,
+      );
       self.rc_state.update_state(
         (data.len() * 8) as i64,
         fti,
@@ -1425,6 +1438,7 @@ impl<T: Pixel> ContextInner<T> {
       &mut frame_data.fs,
       &self.inter_cfg,
       Some(self.hashmap.clone()),
+      Some(self.new_hashmap.clone()),
     );
     #[cfg(feature = "dump_lookahead_data")]
     {
@@ -1491,6 +1505,18 @@ impl<T: Pixel> ContextInner<T> {
     let fi = &frame_data.fi;
 
     self.output_frameno += 1;
+    {
+      let mut hashmap_lock =
+        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
+      let mut new_hashmap_lock =
+        self.new_hashmap.lock().expect("FAILED TO LOCK NEW HASHMAP");
+      let new_hashmap_to_add = new_hashmap_lock.pop();
+      new_hashmap_to_add.expect("RAN OUT OF HASHMAPS").iter().for_each(|v| {
+        let (hash, value) = v;
+        hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
+      });
+      new_hashmap_lock.push(Vec::new());
+    }
 
     if fi.show_frame {
       let input_frameno = fi.input_frameno;
