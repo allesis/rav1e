@@ -38,7 +38,7 @@ binaries = [
   "av-metrics",
   "nom",
 ]
-default = ["binaries", "threading", "signal_support", "git_version", "y4m",
+default = ["asm", "binaries", "threading", "signal_support", "git_version", "y4m",
 "scan_fmt", "ivf", "serde"]
 git_version = ["built/git2"]
 asm = ["nasm-rs", "cc"]

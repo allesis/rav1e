@@ -1632,20 +1632,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   } else {
     marker = 0b0;
   }
-  w.bit(marker);
-  if marker == 1 {
-    for byte in hash.to_be_bytes() {
-      w.bit(((byte >> 7) & 0b1).into());
-      w.bit(((byte >> 6) & 0b1).into());
-      w.bit(((byte >> 5) & 0b1).into());
-      w.bit(((byte >> 4) & 0b1).into());
-      w.bit(((byte >> 3) & 0b1).into());
-      w.bit(((byte >> 2) & 0b1).into());
-      w.bit(((byte >> 1) & 0b1).into());
-      w.bit(((byte >> 0) & 0b1).into());
-    }
-    //println!("USED A HASH");
-  }
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
@@ -1671,6 +1657,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       frame_clipped_txw,
       frame_clipped_txh,
       cul_lvl,
+      hash,
+      marker,
     );
     cul_lvl = cul_level;
     res_val || eob != back_eob
