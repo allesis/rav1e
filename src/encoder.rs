@@ -1431,8 +1431,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   rdo_type: RDOType,
   need_recon_pixel: bool,
   // Optional Rc<HashMap> to build dict around
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
   let tile_rect = ts.tile_rect().decimated(xdec, ydec);
@@ -2059,8 +2059,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
   tx_type: TxType, mode_context: usize, mv_stack: &[CandidateMV],
   rdo_type: RDOType, need_recon_pixel: bool,
   enc_stats: Option<&mut EncoderStats>,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -2369,8 +2369,8 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
   tile_bo: TileBlockOffset, bsize: BlockSize, tx_size: TxSize,
   tx_type: TxType, skip: bool, cfl: CFLParams, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   let bw = bsize.width_mi() / tx_size.width_mi();
   let bh = bsize.height_mi() / tx_size.height_mi();
@@ -2540,8 +2540,8 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
   angle_delta_y: i8, tile_bo: TileBlockOffset, bsize: BlockSize,
   tx_size: TxSize, tx_type: TxType, skip: bool, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   if skip {
     return (false, ScaledDistortion::zero());
@@ -2704,8 +2704,8 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   mode_decision: &PartitionParameters, rdo_type: RDOType,
   enc_stats: Option<&mut EncoderStats>,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) {
   let (mode_luma, mode_chroma) =
     (mode_decision.pred_mode_luma, mode_decision.pred_mode_chroma);
@@ -2784,8 +2784,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
   cw: &mut ContextWriter, w_pre_cdef: &mut W, w_post_cdef: &mut W,
   bsize: BlockSize, tile_bo: TileBlockOffset, ref_rd_cost: f64,
   inter_cfg: &InterConfig, enc_stats: &mut EncoderStats,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionGroupParameters {
   let rdo_type = RDOType::PixelDistRealRate;
   let mut rd_cost = f64::MAX;
@@ -3084,8 +3084,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   block_output: &Option<PartitionGroupParameters>, inter_cfg: &InterConfig,
   enc_stats: &mut EncoderStats,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) {
   if tile_bo.0.x >= ts.mi_width || tile_bo.0.y >= ts.mi_height {
     return;
@@ -3428,8 +3428,8 @@ fn get_initial_cdfcontext<T: Pixel>(fi: &FrameInvariants<T>) -> CDFContext {
 #[profiling::function]
 fn encode_tile_group<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> Vec<u8> {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -3671,8 +3671,8 @@ fn encode_tile<'a, T: Pixel>(
   fi: &FrameInvariants<T>, ts: &'a mut TileStateMut<'_, T>,
   fc: &'a mut CDFContext, blocks: &'a mut TileBlocksMut<'a>,
   inter_cfg: &InterConfig,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (Vec<u8>, EncoderStats) {
   let mut enc_stats = EncoderStats::default();
   let mut w = WriterEncoder::new();
@@ -3975,8 +3975,8 @@ fn get_initial_segmentation<T: Pixel>(
 #[profiling::function]
 pub fn encode_frame<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> Vec<u8> {
   debug_assert!(!fi.is_show_existing_frame());
   let obu_extension = 0;

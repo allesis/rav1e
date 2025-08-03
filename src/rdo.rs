@@ -727,8 +727,8 @@ pub fn rdo_tx_size_type<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   luma_mode: PredictionMode, ref_frames: [RefType; 2], mvs: [MotionVector; 2],
-  skip: bool, hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  skip: bool, hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (TxSize, TxType) {
   let is_inter = !luma_mode.is_intra();
   let mut tx_size = max_txsize_rect_lookup[bsize as usize];
@@ -826,8 +826,8 @@ fn luma_chroma_mode_rdo<T: Pixel>(
   mode_set_chroma: &[PredictionMode], luma_mode_is_intra: bool,
   mode_context: usize, mv_stack: &ArrayVec<CandidateMV, 9>,
   angle_delta: AngleDelta,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[1].cfg;
 
@@ -983,8 +983,8 @@ pub fn rdo_mode_decision<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionParameters {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[1].cfg;
   let cw_checkpoint = cw.checkpoint(&tile_bo, fi.sequence.chroma_sampling);
@@ -1151,8 +1151,8 @@ fn inter_frame_rdo_mode_decision<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig, cw_checkpoint: &ContextWriterCheckpoint,
-  rdo_type: RDOType, hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  rdo_type: RDOType, hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionParameters {
   let mut best = PartitionParameters::default();
 
@@ -1428,8 +1428,8 @@ fn intra_frame_rdo_mode_decision<T: Pixel>(
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   cw_checkpoint: &ContextWriterCheckpoint, rdo_type: RDOType,
   mut best: PartitionParameters, is_chroma_block: bool,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionParameters {
   let mut modes = ArrayVec::<_, INTRA_MODES>::new();
 
@@ -1742,8 +1742,8 @@ pub fn rdo_tx_type_decision<T: Pixel>(
   mode: PredictionMode, ref_frames: [RefType; 2], mvs: [MotionVector; 2],
   bsize: BlockSize, tile_bo: TileBlockOffset, tx_size: TxSize, tx_set: TxSet,
   tx_types: &[TxType], cur_best_rd: f64,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (TxType, f64) {
   let mut best_type = TxType::DCT_DCT;
   let mut best_rd = f64::MAX;
@@ -1894,8 +1894,8 @@ fn rdo_partition_none<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig, child_modes: &mut ArrayVec<PartitionParameters, 4>,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> f64 {
   debug_assert!(tile_bo.0.x < ts.mi_width && tile_bo.0.y < ts.mi_height);
 
@@ -1924,8 +1924,8 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset, inter_cfg: &InterConfig,
   partition: PartitionType, rdo_type: RDOType, best_rd: f64,
   child_modes: &mut ArrayVec<PartitionParameters, 4>,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> Option<f64> {
   debug_assert!(tile_bo.0.x < ts.mi_width && tile_bo.0.y < ts.mi_height);
   let subsize = bsize.subsize(partition).unwrap();
@@ -2019,8 +2019,8 @@ pub fn rdo_partition_decision<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   cached_block: &PartitionGroupParameters, partition_types: &[PartitionType],
   rdo_type: RDOType, inter_cfg: &InterConfig,
-  hashmap: Option<Arc<RwLock<HashMap<u64, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionGroupParameters {
   let mut best_partition = cached_block.part_type;
   let mut best_rd = cached_block.rd_cost;

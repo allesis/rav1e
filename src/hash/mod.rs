@@ -11,7 +11,7 @@ use crate::{Pixel, prelude::TxType};
 pub fn hashcoeffs<T: Pixel>(
   coeffs: &mut [<T as Pixel>::Coeff], eob: u16, tx_type: TxType, width: usize,
   height: usize,
-) -> u64 {
+) -> u32 {
   let mut hasher = DefaultHasher::new();
   coeffs.iter().for_each(|coeff| {
     if coeff.to_i32().unwrap() == 0 {
@@ -29,5 +29,7 @@ pub fn hashcoeffs<T: Pixel>(
   width.hash(&mut hasher);
   height.hash(&mut hasher);
   let hash = hasher.finish();
-  hash
+  (((hash >> 32) ^ hash) & 0x00000000FFFFFFFF)
+    .try_into()
+    .expect("FAILED TO CONVERT HASH")
 }

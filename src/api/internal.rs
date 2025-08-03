@@ -262,8 +262,8 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
-  hashmap: Arc<RwLock<HashMap<u64, HashObject>>>,
-  new_hashmap: Arc<Mutex<Vec<Vec<(u64, HashObject)>>>>,
+  hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
+  new_hashmap: Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>,
 }
 
 pub struct HashObject {
