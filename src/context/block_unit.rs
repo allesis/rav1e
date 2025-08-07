@@ -1768,7 +1768,7 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, marker: u16,
+    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, mut marker: u16,
   ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
@@ -1805,38 +1805,12 @@ impl ContextWriter<'_> {
       symbol_with_update!(self, w, (eob == 0 && marker == 0) as u32, cdf);
     }
 
-    if marker != 0 && eob == 0 {
-      // NOTE: We found a valid hash and need to write it
-      w.bit(marker);
-      if marker == 1 {
-        // PERF: We can encode this in a more efficient manner
-        for byte in hash.to_be_bytes() {
-          w.bit(((byte >> 7) & 0b1).into());
-          w.bit(((byte >> 6) & 0b1).into());
-          w.bit(((byte >> 5) & 0b1).into());
-          w.bit(((byte >> 4) & 0b1).into());
-          w.bit(((byte >> 3) & 0b1).into());
-          w.bit(((byte >> 2) & 0b1).into());
-          w.bit(((byte >> 1) & 0b1).into());
-          w.bit(((byte >> 0) & 0b1).into());
-        }
-        //println!("USED A HASH");
-      }
-    } else if marker == 0 && eob != 0 {
-      // NOTE: We did not find a valid hash to write
-      w.bit(marker);
-    } else if marker == 0 && eob == 0 {
-      // NOTE: The coeffs are all zero
-    } else {
-      unreachable!("WE WILL NEVER TRY TO WRITE A HASH FOR AN EMPTY BLOCK");
-    }
     if eob == 0 {
       // cul_lvl will always be 0 if eob is actually 0
       // Otherwise will be the result of the previous cul_lvl calc
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       return (false, cul_lvl);
     }
-
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
       &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
@@ -1845,6 +1819,26 @@ impl ContextWriter<'_> {
 
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
+
+    if eob < 4 {
+      marker = 0;
+    }
+    w.bit(marker);
+    if marker == 1 {
+      // PERF: We can encode this in a more efficient manner
+      for byte in hash.to_be_bytes() {
+        w.bit(((byte >> 7) & 0b1).into());
+        w.bit(((byte >> 6) & 0b1).into());
+        w.bit(((byte >> 5) & 0b1).into());
+        w.bit(((byte >> 4) & 0b1).into());
+        w.bit(((byte >> 3) & 0b1).into());
+        w.bit(((byte >> 2) & 0b1).into());
+        w.bit(((byte >> 1) & 0b1).into());
+        w.bit(((byte >> 0) & 0b1).into());
+      }
+      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+      return (true, cul_lvl);
+    }
 
     // Signal tx_type for luma plane only
     if plane == 0 {
@@ -1868,6 +1862,70 @@ impl ContextWriter<'_> {
     (true, cul_level as u8)
   }
 
+  fn encode_coeffs_bits<T: Coefficient, W: Writer>(
+    &mut self, coeffs: &[T], levels: &mut [u8], scan: &[u16], eob: u16,
+    tx_size: TxSize, tx_class: TxClass, txs_ctx: usize, plane_type: usize,
+    w: &mut W,
+  ) -> u64 {
+    let mut bits = 0;
+    let mut coeff_contexts =
+      Aligned::<[MaybeUninit<i8>; MAX_CODED_TX_SQUARE]>::uninit_array();
+
+    // get_nz_map_contexts sets coeff_contexts contiguously as a parallel array for scan, not in scan order
+    let coeff_contexts = self.get_nz_map_contexts(
+      levels,
+      scan,
+      eob,
+      tx_size,
+      tx_class,
+      &mut coeff_contexts.data,
+    );
+
+    let bhl = Self::get_txb_bhl(tx_size);
+
+    let scan_with_ctx =
+      scan.iter().copied().zip(coeff_contexts.iter().copied());
+    for (c, ((pos, coeff_ctx), v)) in
+      scan_with_ctx.zip(coeffs.iter().copied()).enumerate().rev()
+    {
+      let pos = pos as usize;
+      let coeff_ctx = coeff_ctx as usize;
+      let level = v.abs();
+
+      if c == usize::from(eob) - 1 {
+        bits += w.symbol_bits(
+          cmp::min(u32::cast_from(level), 3) - 1,
+          &self.fc.coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx],
+        );
+      } else {
+        bits += w.symbol_bits(
+          cmp::min(u32::cast_from(level), 3),
+          &self.fc.coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx],
+        );
+      }
+
+      if level > T::cast_from(NUM_BASE_LEVELS) {
+        let base_range = level - T::cast_from(1 + NUM_BASE_LEVELS);
+        let br_ctx = Self::get_br_ctx(levels, pos, bhl, tx_class);
+        let mut idx: T = T::cast_from(0);
+
+        loop {
+          if idx >= T::cast_from(COEFF_BASE_RANGE) {
+            break;
+          }
+          let k = cmp::min(base_range - idx, T::cast_from(BR_CDF_SIZE - 1));
+          let cdf = &self.fc.coeff_br_cdf
+            [txs_ctx.min(TxSize::TX_32X32 as usize)][plane_type][br_ctx];
+          bits += w.symbol_bits(u32::cast_from(k), cdf);
+          if k < T::cast_from(BR_CDF_SIZE - 1) {
+            break;
+          }
+          idx += T::cast_from(BR_CDF_SIZE - 1);
+        }
+      }
+    }
+    bits as u64
+  }
   fn encode_eob<W: Writer>(
     &mut self, eob: u16, tx_size: TxSize, tx_class: TxClass, txs_ctx: usize,
     plane_type: usize, w: &mut W,
