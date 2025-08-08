@@ -1811,7 +1811,9 @@ impl ContextWriter<'_> {
       return false;
     }
 
-    w.bit(1);
+    if is_inter {
+      w.bit(1);
+    }
 
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
