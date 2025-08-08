@@ -1820,24 +1820,23 @@ impl ContextWriter<'_> {
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
 
-    if eob < 4 {
-      marker = 0;
-    }
-    w.bit(marker);
-    if marker == 1 {
-      // PERF: We can encode this in a more efficient manner
-      for byte in hash.to_be_bytes() {
-        w.bit(((byte >> 7) & 0b1).into());
-        w.bit(((byte >> 6) & 0b1).into());
-        w.bit(((byte >> 5) & 0b1).into());
-        w.bit(((byte >> 4) & 0b1).into());
-        w.bit(((byte >> 3) & 0b1).into());
-        w.bit(((byte >> 2) & 0b1).into());
-        w.bit(((byte >> 1) & 0b1).into());
-        w.bit(((byte >> 0) & 0b1).into());
+    if is_inter {
+      w.bit(marker);
+      if marker == 1 {
+        // PERF: We can encode this in a more efficient manner
+        for byte in hash.to_be_bytes() {
+          w.bit(((byte >> 7) & 0b1).into());
+          w.bit(((byte >> 6) & 0b1).into());
+          w.bit(((byte >> 5) & 0b1).into());
+          w.bit(((byte >> 4) & 0b1).into());
+          w.bit(((byte >> 3) & 0b1).into());
+          w.bit(((byte >> 2) & 0b1).into());
+          w.bit(((byte >> 1) & 0b1).into());
+          w.bit(((byte >> 0) & 0b1).into());
+        }
+        self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+        return (true, cul_lvl);
       }
-      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
-      return (true, cul_lvl);
     }
 
     // Signal tx_type for luma plane only
