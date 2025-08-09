@@ -1821,7 +1821,6 @@ impl ContextWriter<'_> {
     let plane_type = usize::from(plane != 0);
 
     if is_inter {
-      w.bit(marker);
       if marker == 1 {
         // PERF: We can encode this in a more efficient manner
         for byte in hash.to_be_bytes() {
