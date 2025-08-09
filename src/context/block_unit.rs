@@ -1805,14 +1805,14 @@ impl ContextWriter<'_> {
       let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
       symbol_with_update!(self, w, (eob == 0) as u32, cdf);
     }
+    {
+      let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
+      symbol_with_update!(self, w, (eob == 0) as u32, cdf);
+    }
 
     if eob == 0 {
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, 0);
       return false;
-    }
-
-    if is_inter {
-      w.bit(1);
     }
 
     let mut levels_buf = [0u8; TX_PAD_2D];
