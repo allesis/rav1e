@@ -1768,7 +1768,7 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, mut marker: u16,
+    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, marker: u16,
   ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
@@ -1809,7 +1809,7 @@ impl ContextWriter<'_> {
       // cul_lvl will always be 0 if eob is actually 0
       // Otherwise will be the result of the previous cul_lvl calc
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
-      return (false, cul_lvl);
+      return (false, 0);
     }
     if is_inter {
       w.bit(marker);
