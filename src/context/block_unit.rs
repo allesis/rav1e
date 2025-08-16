@@ -1801,10 +1801,11 @@ impl ContextWriter<'_> {
     );
 
     let mut bits: u32 = 0;
+
     {
       let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
-      symbol_with_update!(self, w, (eob == 0 && marker == 0) as u32, cdf);
       bits += w.symbol_bits((eob == 0) as u32, cdf);
+      symbol_with_update!(self, w, (eob == 0) as u32, cdf);
     }
 
     if eob == 0 {
@@ -1822,9 +1823,6 @@ impl ContextWriter<'_> {
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
 
-    if eob < 4 {
-      marker = 0;
-    }
     w.bit(marker);
     bits += 1;
     if marker == 1 {
