@@ -1593,10 +1593,20 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       fi.cpu_feature_level,
     );
   }
+
   let hash =
     hashcoeffs::<T>(rcoeffs, eob, tx_type, tx_size.width(), tx_size.height());
 
-  // println!("HASH {:?} -> CF {:?}", hash, rcoeffs);
+  use log::debug;
+  debug!(
+    "HASH {:?} -> EOB {} TXTP {} W {} H {} CF {:?}",
+    hash,
+    eob,
+    tx_type as usize,
+    tx_size.width(),
+    tx_size.height(),
+    rcoeffs
+  );
   let mut marker = 0;
   let mut cul_lvl = 0;
 
@@ -1621,6 +1631,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       }
     }
   }
+
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);

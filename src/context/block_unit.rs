@@ -1839,8 +1839,8 @@ impl ContextWriter<'_> {
         bits += 8;
       }
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
-      use log::info;
-      info!("Hash took {:?} bits to write", bits);
+      use log::debug;
+      debug!("Hash took {:?} bits to write", bits);
       return (true, cul_lvl);
     }
 
@@ -1866,8 +1866,8 @@ impl ContextWriter<'_> {
       coeffs, w, plane_type, txb_ctx, cul_level, &mut bits,
     );
     self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
-    use log::info;
-    info!("Standard took {:?} bits to write", bits);
+    use log::debug;
+    debug!("Standard took {:?} bits to write", bits);
     (true, cul_level as u8)
   }
 
