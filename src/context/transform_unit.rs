@@ -532,6 +532,7 @@ impl ContextWriter<'_> {
   pub fn write_tx_type<W: Writer>(
     &mut self, w: &mut W, tx_size: TxSize, tx_type: TxType,
     y_mode: PredictionMode, is_inter: bool, use_reduced_tx_set: bool,
+    bits: &mut u32,
   ) {
     let square_tx_size = tx_size.sqr();
     let tx_set = get_tx_set(tx_size, is_inter, use_reduced_tx_set);
@@ -547,12 +548,15 @@ impl ContextWriter<'_> {
         let s = av1_tx_ind[tx_set as usize][tx_type as usize] as u32;
         if tx_set_index == 1 {
           let cdf = &self.fc.inter_tx_1_cdf[square_tx_size as usize];
+          *bits += w.symbol_bits(s, cdf);
           symbol_with_update!(self, w, s, cdf);
         } else if tx_set_index == 2 {
           let cdf = &self.fc.inter_tx_2_cdf[square_tx_size as usize];
+          *bits += w.symbol_bits(s, cdf);
           symbol_with_update!(self, w, s, cdf);
         } else {
           let cdf = &self.fc.inter_tx_3_cdf[square_tx_size as usize];
+          *bits += w.symbol_bits(s, cdf);
           symbol_with_update!(self, w, s, cdf);
         }
       } else {
@@ -565,10 +569,12 @@ impl ContextWriter<'_> {
         if tx_set_index == 1 {
           let cdf = &self.fc.intra_tx_1_cdf[square_tx_size as usize]
             [intra_dir as usize];
+          *bits += w.symbol_bits(s, cdf);
           symbol_with_update!(self, w, s, cdf);
         } else {
           let cdf = &self.fc.intra_tx_2_cdf[square_tx_size as usize]
             [intra_dir as usize];
+          *bits += w.symbol_bits(s, cdf);
           symbol_with_update!(self, w, s, cdf);
         }
       }

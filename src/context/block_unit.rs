@@ -1800,9 +1800,11 @@ impl ContextWriter<'_> {
       frame_clipped_txh,
     );
 
+    let mut bits: u32 = 0;
     {
       let cdf = &self.fc.txb_skip_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
       symbol_with_update!(self, w, (eob == 0 && marker == 0) as u32, cdf);
+      bits += w.symbol_bits((eob == 0) as u32, cdf);
     }
 
     if eob == 0 {
@@ -1824,6 +1826,7 @@ impl ContextWriter<'_> {
       marker = 0;
     }
     w.bit(marker);
+    bits += 1;
     if marker == 1 {
       // PERF: We can encode this in a more efficient manner
       for byte in hash.to_be_bytes() {
@@ -1835,8 +1838,11 @@ impl ContextWriter<'_> {
         w.bit(((byte >> 2) & 0b1).into());
         w.bit(((byte >> 1) & 0b1).into());
         w.bit(((byte >> 0) & 0b1).into());
+        bits += 8;
       }
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
+      use log::info;
+      info!("Hash took {:?} bits to write", bits);
       return (true, cul_lvl);
     }
 
@@ -1849,16 +1855,21 @@ impl ContextWriter<'_> {
         pred_mode,
         is_inter,
         use_reduced_tx_set,
+        &mut bits,
       );
     }
 
-    self.encode_eob(eob, tx_size, tx_class, txs_ctx, plane_type, w);
+    self.encode_eob(eob, tx_size, tx_class, txs_ctx, plane_type, w, &mut bits);
     self.encode_coeffs(
       coeffs, levels, scan, eob, tx_size, tx_class, txs_ctx, plane_type, w,
+      &mut bits,
     );
-    let cul_level =
-      self.encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level);
+    let cul_level = self.encode_coeff_signs(
+      coeffs, w, plane_type, txb_ctx, cul_level, &mut bits,
+    );
     self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_level as u8);
+    use log::info;
+    info!("Standard took {:?} bits to write", bits);
     (true, cul_level as u8)
   }
 
@@ -1928,7 +1939,7 @@ impl ContextWriter<'_> {
   }
   fn encode_eob<W: Writer>(
     &mut self, eob: u16, tx_size: TxSize, tx_class: TxClass, txs_ctx: usize,
-    plane_type: usize, w: &mut W,
+    plane_type: usize, w: &mut W, bits: &mut u32,
   ) {
     let (eob_pt, eob_extra) = Self::get_eob_pos_token(eob);
     let eob_multi_size: usize = tx_size.area_log2() - 4;
@@ -1937,30 +1948,37 @@ impl ContextWriter<'_> {
     match eob_multi_size {
       0 => {
         let cdf = &self.fc.eob_flag_cdf16[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
       1 => {
         let cdf = &self.fc.eob_flag_cdf32[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
       2 => {
         let cdf = &self.fc.eob_flag_cdf64[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
       3 => {
         let cdf = &self.fc.eob_flag_cdf128[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
       4 => {
         let cdf = &self.fc.eob_flag_cdf256[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
       5 => {
         let cdf = &self.fc.eob_flag_cdf512[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
       _ => {
         let cdf = &self.fc.eob_flag_cdf1024[plane_type][eob_multi_ctx];
+        *bits += w.symbol_bits(eob_pt - 1, cdf);
         symbol_with_update!(self, w, eob_pt - 1, cdf);
       }
     }
@@ -1972,10 +1990,12 @@ impl ContextWriter<'_> {
       let mut bit: u32 = u32::from((eob_extra & (1 << eob_shift)) != 0);
       let cdf =
         &self.fc.eob_extra_cdf[txs_ctx][plane_type][(eob_pt - 3) as usize];
+      *bits += w.symbol_bits(bit, cdf);
       symbol_with_update!(self, w, bit, cdf);
       for i in 1..eob_offset_bits {
         eob_shift = eob_offset_bits - 1 - i;
         bit = u32::from((eob_extra & (1 << eob_shift)) != 0);
+        *bits += 1;
         w.bit(bit as u16);
       }
     }
@@ -1984,7 +2004,7 @@ impl ContextWriter<'_> {
   fn encode_coeffs<T: Coefficient, W: Writer>(
     &mut self, coeffs: &[T], levels: &mut [u8], scan: &[u16], eob: u16,
     tx_size: TxSize, tx_class: TxClass, txs_ctx: usize, plane_type: usize,
-    w: &mut W,
+    w: &mut W, bits: &mut u32,
   ) {
     let mut coeff_contexts =
       Aligned::<[MaybeUninit<i8>; MAX_CODED_TX_SQUARE]>::uninit_array();
@@ -2011,6 +2031,10 @@ impl ContextWriter<'_> {
       let level = v.abs();
 
       if c == usize::from(eob) - 1 {
+        *bits += w.symbol_bits(
+          cmp::min(u32::cast_from(level), 3) - 1,
+          &self.fc.coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx],
+        );
         symbol_with_update!(
           self,
           w,
@@ -2018,6 +2042,10 @@ impl ContextWriter<'_> {
           &self.fc.coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx]
         );
       } else {
+        *bits += w.symbol_bits(
+          cmp::min(u32::cast_from(level), 3),
+          &self.fc.coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
+        );
         symbol_with_update!(
           self,
           w,
@@ -2038,6 +2066,7 @@ impl ContextWriter<'_> {
           let k = cmp::min(base_range - idx, T::cast_from(BR_CDF_SIZE - 1));
           let cdf = &self.fc.coeff_br_cdf
             [txs_ctx.min(TxSize::TX_32X32 as usize)][plane_type][br_ctx];
+          *bits += w.symbol_bits(u32::cast_from(k), cdf);
           symbol_with_update!(self, w, u32::cast_from(k), cdf);
           if k < T::cast_from(BR_CDF_SIZE - 1) {
             break;
@@ -2050,7 +2079,7 @@ impl ContextWriter<'_> {
 
   fn encode_coeff_signs<T: Coefficient, W: Writer>(
     &mut self, coeffs: &[T], w: &mut W, plane_type: usize, txb_ctx: TXB_CTX,
-    orig_cul_level: u32,
+    orig_cul_level: u32, bits: &mut u32,
   ) -> u32 {
     // Loop to code all signs in the transform block,
     // starting with the sign of DC (if applicable)
@@ -2063,12 +2092,32 @@ impl ContextWriter<'_> {
       let sign = u32::from(v < T::cast_from(0));
       if c == 0 {
         let cdf = &self.fc.dc_sign_cdf[plane_type][txb_ctx.dc_sign_ctx];
+        *bits += w.symbol_bits(sign, cdf);
         symbol_with_update!(self, w, sign, cdf);
       } else {
+        *bits += 1;
         w.bit(sign as u16);
+      }
+      fn bits_golomb(level: u32) -> u32 {
+        let mut bits = 0;
+        let x = level + 1;
+        let length = 32 - x.leading_zeros();
+
+        for _ in 0..length - 1 {
+          bits += 1;
+        }
+
+        for _ in (0..length).rev() {
+          bits += 1;
+        }
+        bits
       }
       // save extra golomb codes for separate loop
       if level > T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS) {
+        *bits += bits_golomb(u32::cast_from(
+          level - T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1),
+        ));
+
         w.write_golomb(u32::cast_from(
           level - T::cast_from(COEFF_BASE_RANGE + NUM_BASE_LEVELS + 1),
         ));
