@@ -1668,23 +1668,25 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
 
   // EOB may have been dropped at this point so resetting it may be useless
 
-  if let Some(hash_buffers) = hash_buffers {
-    // We have a hashmap, we should attempt hash based encoding
+  if has_coeff && marker == 0 {
+    if let Some(hash_buffers) = hash_buffers {
+      // We have a hashmap, we should attempt hash based encoding
 
-    // NOTE: This could either be a lock or a try_lock
-    // If a lock is used, we will wait until the hashmap is available to continue
-    // which may DESTROY performance
-    // If we use a try_lock, we may miss chances to decrease encoding size
-    // For now a lock will be used
-    let mut hash_buffers_lock =
-      hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
-    let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
-    if marker == 0 && eob != 0 {
-      let hash_object = HashObject { cul_level: cul_lvl };
-      //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
+      // NOTE: This could either be a lock or a try_lock
+      // If a lock is used, we will wait until the hashmap is available to continue
+      // which may DESTROY performance
+      // If we use a try_lock, we may miss chances to decrease encoding size
+      // For now a lock will be used
+      let mut hash_buffers_lock =
+        hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
+      let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
+      if marker == 0 && eob != 0 {
+        let hash_object = HashObject { cul_level: cul_lvl };
+        //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
 
-      hash_buffer.push((hash, hash_object));
-      //println!("HASH ADDED {:?}", hash);
+        hash_buffer.push((hash, hash_object));
+        //println!("HASH ADDED {:?}", hash);
+      }
     }
   }
   /*
