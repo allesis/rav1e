@@ -1402,7 +1402,7 @@ fn get_qidx<T: Pixel>(
 ///
 /// - If the block size is invalid for subsampling
 /// - If a tx type other than DCT is used for 64x64 blocks
-pub fn encode_tx_block<T: Pixel, W: Writer>(
+pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   fi: &FrameInvariants<T>,
   ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter,
@@ -1433,6 +1433,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   // Optional Rc<HashMap> to build dict around
   hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
   hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
+  enc_stats: &mut Option<&'a mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
   let tile_rect = ts.tile_rect().decimated(xdec, ydec);
@@ -1631,6 +1632,13 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
         None => {}
       }
     }
+  }
+
+  if let Some(enc_stats) = enc_stats {
+    if marker == 1 {
+      enc_stats.hashes_encoded += 1;
+    }
+    enc_stats.tiles_encoded += 1;
   }
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
@@ -2287,16 +2295,21 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
     }
   }
 
-  if let Some(enc_stats) = enc_stats {
-    let pixels = tx_size.area();
-    enc_stats.block_size_counts[bsize as usize] += pixels;
-    enc_stats.tx_type_counts[tx_type as usize] += pixels;
-    enc_stats.luma_pred_mode_counts[luma_mode as usize] += pixels;
-    enc_stats.chroma_pred_mode_counts[chroma_mode as usize] += pixels;
-    if skip {
-      enc_stats.skip_block_count += pixels;
+  let enc_stats = {
+    if let Some(enc_stats) = enc_stats {
+      let pixels = tx_size.area();
+      enc_stats.block_size_counts[bsize as usize] += pixels;
+      enc_stats.tx_type_counts[tx_type as usize] += pixels;
+      enc_stats.luma_pred_mode_counts[luma_mode as usize] += pixels;
+      enc_stats.chroma_pred_mode_counts[chroma_mode as usize] += pixels;
+      if skip {
+        enc_stats.skip_block_count += pixels;
+      }
+      Some(enc_stats)
+    } else {
+      enc_stats
     }
-  }
+  };
 
   if fi.sequence.enable_intra_edge_filter {
     for y in 0..bsize.height_mi() {
@@ -2336,6 +2349,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       need_recon_pixel,
       hashmap.clone(),
       hash_buffers.clone(),
+      enc_stats,
     )
   } else {
     write_tx_blocks(
@@ -2357,6 +2371,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       need_recon_pixel,
       hashmap.clone(),
       hash_buffers.clone(),
+      enc_stats,
     )
   }
 }
@@ -2373,6 +2388,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
   rdo_type: RDOType, need_recon_pixel: bool,
   hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
   hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
+  mut enc_stats: Option<&mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   let bw = bsize.width_mi() / tx_size.width_mi();
   let bh = bsize.height_mi() / tx_size.height_mi();
@@ -2432,6 +2448,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
         need_recon_pixel,
         hashmap.clone(),
         hash_buffers.clone(),
+        &mut enc_stats,
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2526,6 +2543,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
           need_recon_pixel,
           hashmap.clone(),
           hash_buffers.clone(),
+          &mut enc_stats,
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
@@ -2544,6 +2562,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
   rdo_type: RDOType, need_recon_pixel: bool,
   hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
   hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
+  mut enc_stats: Option<&mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   if skip {
     return (false, ScaledDistortion::zero());
@@ -2603,6 +2622,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
         need_recon_pixel,
         hashmap.clone(),
         hash_buffers.clone(),
+        &mut enc_stats,
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2689,6 +2709,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
           need_recon_pixel,
           hashmap.clone(),
           hash_buffers.clone(),
+          &mut enc_stats,
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;

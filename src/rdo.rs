@@ -21,33 +21,32 @@ use arrayvec::*;
 use itertools::izip;
 
 use crate::{
-  Tune,
   api::*,
   cdef::*,
   context::*,
   cpu_features::CpuFeatureLevel,
   deblock::*,
   dist::*,
-  ec::{OD_BITRES, Writer, WriterCounter},
+  ec::{Writer, WriterCounter, OD_BITRES},
   encode_block_post_cdef, encode_block_pre_cdef, encode_block_with_modes,
   encoder::{FrameInvariants, IMPORTANCE_BLOCK_SIZE},
   frame::*,
   header::ReferenceMode,
   lrf::*,
   mc::MotionVector,
-  me::{MVSamplingMode, MotionSearchResult, estimate_motion},
+  me::{estimate_motion, MVSamplingMode, MotionSearchResult},
   motion_compensate,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
-    RAV1E_INTER_COMPOUND_MODES, RAV1E_INTER_MODES_MINIMAL, RAV1E_INTRA_MODES,
-    luma_ac,
+    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam,
+    PredictionMode, RAV1E_INTER_COMPOUND_MODES, RAV1E_INTER_MODES_MINIMAL,
+    RAV1E_INTRA_MODES,
   },
   rdo_tables::*,
   tiling::*,
-  transform::{RAV1E_TX_TYPES, TxSet, TxSize, TxType},
-  util::{Aligned, Pixel, init_slice_repeat_mut},
-  write_tx_blocks, write_tx_tree,
+  transform::{TxSet, TxSize, TxType, RAV1E_TX_TYPES},
+  util::{init_slice_repeat_mut, Aligned, Pixel},
+  write_tx_blocks, write_tx_tree, Tune,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -984,7 +983,7 @@ pub fn rdo_mode_decision<T: Pixel>(
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig,
   hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
-  new_hashmap: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionParameters {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[1].cfg;
   let cw_checkpoint = cw.checkpoint(&tile_bo, fi.sequence.chroma_sampling);
@@ -1010,7 +1009,7 @@ pub fn rdo_mode_decision<T: Pixel>(
       &cw_checkpoint,
       rdo_type,
       hashmap.clone(),
-      new_hashmap.clone(),
+      hash_buffers.clone(),
     )
   } else {
     PartitionParameters::default()
@@ -1031,7 +1030,7 @@ pub fn rdo_mode_decision<T: Pixel>(
       best,
       is_chroma_block,
       hashmap.clone(),
-      new_hashmap.clone(),
+      hash_buffers.clone(),
     );
   }
 
@@ -1060,7 +1059,8 @@ pub fn rdo_mode_decision<T: Pixel>(
       true,
       rdo_type,
       true,
-      None,
+      hashmap.clone(),
+      hash_buffers.clone(),
       None,
     );
     cw.rollback(&cw_checkpoint);
@@ -1801,6 +1801,7 @@ pub fn rdo_tx_type_decision<T: Pixel>(
         need_recon_pixel,
         hashmap.clone(),
         new_hashmap.clone(),
+        None,
       )
     } else {
       write_tx_blocks(
@@ -1822,6 +1823,7 @@ pub fn rdo_tx_type_decision<T: Pixel>(
         need_recon_pixel,
         hashmap.clone(),
         new_hashmap.clone(),
+        None,
       )
     };
 
@@ -2188,9 +2190,9 @@ pub fn rdo_loop_decision<T: Pixel, W: Writer>(
   // Determine area of optimization: Which plane has the largest LRUs?
   // How many LRUs for each?
   let mut sb_w = 1; // how many superblocks wide the largest LRU
-  // is/how many SBs we're processing (same thing)
+                    // is/how many SBs we're processing (same thing)
   let mut sb_h = 1; // how many superblocks wide the largest LRU
-  // is/how many SBs we're processing (same thing)
+                    // is/how many SBs we're processing (same thing)
   let mut lru_w = [0; MAX_PLANES]; // how many LRUs we're processing
   let mut lru_h = [0; MAX_PLANES]; // how many LRUs we're processing
   for pli in 0..planes {
@@ -2525,7 +2527,7 @@ pub fn rdo_loop_decision<T: Pixel, W: Writer>(
                       )
                     } else {
                       0 // no relative cost differeneces to different
-                      // CDEF params.  If cdef is on, it's a wash.
+                        // CDEF params.  If cdef is on, it's a wash.
                     };
                   }
                   RestorationFilter::Sgrproj { set, xqd } => {

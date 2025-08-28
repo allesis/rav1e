@@ -24,6 +24,8 @@ pub struct FrameSummary {
   pub qp: u8,
   /// Block-level encoding stats for the frame
   pub enc_stats: EncoderStats,
+  pub tiles: usize,
+  pub hashes: usize,
 }
 
 #[profiling::function]
@@ -47,6 +49,8 @@ pub fn build_frame_summary<T: Pixel>(
     metrics: encode_metrics,
     qp: packets.qp,
     enc_stats: packets.enc_stats,
+    tiles: 0,
+    hashes: 0,
   }
 }
 
@@ -76,6 +80,10 @@ pub struct ProgressInfo {
   frame_rate: Rational,
   // The length of the whole video, in frames, if known
   total_frames: Option<usize>,
+  // The number of tiles encoded using hashes
+  hashes_encoded: usize,
+  //The total number of tiles encoded
+  tiles_encoded: usize,
   // The time the encode was started
   time_started: Instant,
   // List of frames encoded so far
@@ -97,6 +105,8 @@ impl ProgressInfo {
     Self {
       frame_rate,
       total_frames,
+      hashes_encoded: 0,
+      tiles_encoded: 0,
       time_started: Instant::now(),
       frame_info: Vec::with_capacity(total_frames.unwrap_or_default()),
       encoded_size: 0,
@@ -106,6 +116,8 @@ impl ProgressInfo {
 
   pub fn add_frame(&mut self, frame: FrameSummary) {
     self.encoded_size += frame.size;
+    self.hashes_encoded += frame.hashes;
+    self.tiles_encoded += frame.tiles;
     self.frame_info.push(frame);
   }
 
@@ -673,23 +685,27 @@ impl fmt::Display for ProgressInfo {
     if let Some(total_frames) = self.total_frames {
       write!(
         f,
-        "encoded {}/{} frames, {:.3} fps, {:.2} Kb/s, est: {}, {:.2} MB, elapsed: {}",
+        "encoded {}/{} frames, {:.3} fps, {:.2} Kb/s, est: {}, {:.2} MB, elapsed: {}, hashes: {}/{}",
         self.frames_encoded(),
         total_frames,
         self.encoding_fps(),
         self.bitrate() as f64 / 1000f64,
         secs_to_human_time(self.estimated_time()),
         self.estimated_size() as f64 / (1024 * 1024) as f64,
-        secs_to_human_time(self.elapsed_time())
+        secs_to_human_time(self.elapsed_time()),
+        self.hashes_encoded,
+        self.tiles_encoded,
       )
     } else {
       write!(
         f,
-        "encoded {} frames, {:.3} fps, {:.2} Kb/s, elapsed: {}",
+        "encoded {} frames, {:.3} fps, {:.2} Kb/s, elapsed: {}, hashes: {}/{}",
         self.frames_encoded(),
         self.encoding_fps(),
         self.bitrate() as f64 / 1000f64,
-        secs_to_human_time(self.elapsed_time())
+        secs_to_human_time(self.elapsed_time()),
+        self.hashes_encoded,
+        self.tiles_encoded,
       )
     }
   }

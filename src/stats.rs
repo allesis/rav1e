@@ -33,6 +33,10 @@ pub struct EncoderStats {
   /// Stores count of pixels belonging to each chroma prediction mode in this frame
   #[serde(with = "BigArray")]
   pub chroma_pred_mode_counts: [usize; PREDICTION_MODES],
+  /// Stores the total number of tiles encoded in this frame
+  pub tiles_encoded: usize,
+  /// Stores the total number of hashes encoded in this frame
+  pub hashes_encoded: usize,
 }
 
 impl Default for EncoderStats {
@@ -45,6 +49,8 @@ impl Default for EncoderStats {
       tx_type_counts: [0; TX_TYPES],
       luma_pred_mode_counts,
       chroma_pred_mode_counts,
+      tiles_encoded: 0,
+      hashes_encoded: 0,
     }
   }
 }
@@ -85,5 +91,7 @@ impl AddAssign<&Self> for EncoderStats {
       *s += v;
     }
     self.skip_block_count += rhs.skip_block_count;
+    self.tiles_encoded += rhs.tiles_encoded;
+    self.hashes_encoded += rhs.hashes_encoded;
   }
 }
