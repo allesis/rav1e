@@ -35,10 +35,10 @@ use crate::{
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
+    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
   },
   quantize::*,
-  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
+  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1595,7 +1595,8 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   }
 
   let hash =
-    hashcoeffs::<T>(rcoeffs, eob, tx_type, tx_size.width(), tx_size.height());
+    //hashcoeffs::<T>(rcoeffs, eob, tx_type, tx_size.width(), tx_size.height());
+    hashcoeffs::<T>(rcoeffs, 0,0,0,0);
 
   use log::debug;
   debug!(

@@ -6,10 +6,10 @@ use std::{
 
 use num_traits::ToPrimitive;
 
-use crate::{Pixel, prelude::TxType};
+use crate::{prelude::TxType, Pixel};
 
 pub fn hashcoeffs<T: Pixel>(
-  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, tx_type: TxType, width: usize,
+  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, tx_type: usize, width: usize,
   height: usize,
 ) -> u32 {
   let mut hasher = DefaultHasher::new();
