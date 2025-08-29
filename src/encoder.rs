@@ -35,10 +35,10 @@ use crate::{
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
   },
   quantize::*,
-  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
+  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1609,7 +1609,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     tx_size.height(),
     rcoeffs
   );
-  let mut marker = 0;
+  let mut marker = false;
   let mut cul_lvl = 0;
 
   if eob != 0 {
@@ -1626,19 +1626,12 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
         Some(hash_object) => {
           // We have previously sent these coefficents
           // Marker is 1
-          marker = 0b1;
+          marker = true;
           cul_lvl = hash_object.cul_level;
         }
         None => {}
       }
     }
-  }
-
-  if let Some(enc_stats) = enc_stats {
-    if marker == 1 {
-      enc_stats.hashes_encoded += 1;
-    }
-    enc_stats.tiles_encoded += 1;
   }
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
@@ -1669,15 +1662,27 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       hash,
       marker,
     );
+    marker = res_val;
     cul_lvl = cul_level;
     res_val
   } else {
     true
   };
+  let marker = marker;
+
+  if let Some(enc_stats) = enc_stats {
+    if has_coeff && marker {
+      enc_stats.hashes_encoded += 1;
+    }
+    enc_stats.tiles_encoded += 1;
+  } else if marker {
+    //use log::info;
+    //info!("Wrote a hash but could not log it!");
+  }
 
   // EOB may have been dropped at this point so resetting it may be useless
 
-  if has_coeff && marker == 0 {
+  if has_coeff && !marker && eob != 0 {
     if let Some(hash_buffers) = hash_buffers {
       // We have a hashmap, we should attempt hash based encoding
 
@@ -1689,12 +1694,12 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       let mut hash_buffers_lock =
         hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
       let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
-      if marker == 0 && eob != 0 {
+      if !marker && eob != 0 && has_coeff {
         let hash_object = HashObject { cul_level: cul_lvl };
         //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
 
         hash_buffer.push((hash, hash_object));
-        //println!("HASH ADDED {:?}", hash);
+        // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
       }
     }
   }

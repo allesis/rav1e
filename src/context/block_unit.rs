@@ -1768,7 +1768,7 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, mut marker: u16,
+    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, marker: bool,
   ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
@@ -1823,11 +1823,11 @@ impl ContextWriter<'_> {
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
 
-    w.bit(marker);
+    w.bit(marker as u16);
     bits += 1;
-    if marker == 1 {
+    if marker {
       // PERF: We can encode this in a more efficient manner
-      for byte in hash.to_be_bytes() {
+      for byte in (hash as u16).to_be_bytes() {
         w.bit(((byte >> 7) & 0b1).into());
         w.bit(((byte >> 6) & 0b1).into());
         w.bit(((byte >> 5) & 0b1).into());
@@ -1839,8 +1839,8 @@ impl ContextWriter<'_> {
         bits += 8;
       }
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
-      use log::debug;
-      debug!("Hash took {:?} bits to write", bits);
+      //use log::info;
+      //info!("Hash took {:?} bits to write", bits);
       return (true, cul_lvl);
     }
 

@@ -1516,6 +1516,7 @@ impl<T: Pixel> ContextInner<T> {
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
       });
       new_hashmap_lock.push(Vec::new());
+      new_hashmap_lock.rotate_left(1);
     }
 
     if fi.show_frame {
