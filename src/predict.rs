@@ -25,15 +25,17 @@ cfg_if::cfg_if! {
 
 use aligned_vec::{avec, ABox};
 
-use crate::context::{TileBlockOffset, MAX_SB_SIZE_LOG2, MAX_TX_SIZE};
-use crate::cpu_features::CpuFeatureLevel;
-use crate::encoder::FrameInvariants;
-use crate::frame::*;
-use crate::mc::*;
-use crate::partition::*;
-use crate::tiling::*;
-use crate::transform::*;
-use crate::util::*;
+use crate::{
+  context::{TileBlockOffset, MAX_SB_SIZE_LOG2, MAX_TX_SIZE},
+  cpu_features::CpuFeatureLevel,
+  encoder::FrameInvariants,
+  frame::*,
+  mc::*,
+  partition::*,
+  tiling::*,
+  transform::*,
+  util::*,
+};
 
 pub const ANGLE_STEP: i8 = 3;
 
@@ -698,8 +700,9 @@ pub fn luma_ac<'ac, T: Pixel>(
 }
 
 pub(crate) mod rust {
-  use super::*;
   use std::mem::size_of;
+
+  use super::*;
 
   #[inline(always)]
   pub fn dispatch_predict_intra<T: Pixel>(
@@ -1507,9 +1510,10 @@ pub(crate) mod rust {
 
 #[cfg(test)]
 mod test {
+  use num_traits::*;
+
   use super::*;
   use crate::predict::rust::*;
-  use num_traits::*;
 
   #[test]
   fn pred_matches_u8() {

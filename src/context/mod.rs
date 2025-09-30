@@ -11,29 +11,30 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
-use crate::color::ChromaSampling;
-use crate::ec::{Writer, OD_BITRES};
-use crate::encoder::FrameInvariants;
-use crate::entropymode::*;
-use crate::frame::*;
-use crate::header::ReferenceMode;
-use crate::lrf::*;
-use crate::mc::MotionVector;
-use crate::partition::BlockSize::*;
-use crate::partition::RefType::*;
-use crate::partition::*;
-use crate::scan_order::*;
-use crate::tiling::*;
-use crate::token_cdfs::*;
-use crate::transform::TxSize::*;
-
-use crate::transform::*;
-use crate::util::*;
+use std::{
+  default::Default,
+  ops::{Add, Index, IndexMut},
+  *,
+};
 
 use arrayvec::*;
-use std::default::Default;
-use std::ops::{Add, Index, IndexMut};
-use std::*;
+
+use crate::{
+  color::ChromaSampling,
+  ec::{Writer, OD_BITRES},
+  encoder::FrameInvariants,
+  entropymode::*,
+  frame::*,
+  header::ReferenceMode,
+  lrf::*,
+  mc::MotionVector,
+  partition::{BlockSize::*, RefType::*, *},
+  scan_order::*,
+  tiling::*,
+  token_cdfs::*,
+  transform::{TxSize::*, *},
+  util::*,
+};
 
 const MAX_REF_MV_STACK_SIZE: usize = 8;
 pub const REF_CAT_LEVEL: u32 = 640;
@@ -63,8 +64,7 @@ mod superblock_unit;
 pub use superblock_unit::*;
 
 mod transform_unit;
-pub use transform_unit::TxClass::*;
-pub use transform_unit::*;
+pub use transform_unit::{TxClass::*, *};
 
 mod block_unit;
 pub use block_unit::*;

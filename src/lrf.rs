@@ -7,19 +7,21 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use std::cmp;
-use std::iter::FusedIterator;
-use std::ops::{Index, IndexMut};
-
-use crate::api::SGRComplexityLevel;
-use crate::color::ChromaSampling::Cs400;
-use crate::context::{MAX_PLANES, SB_SIZE};
-use crate::encoder::FrameInvariants;
-use crate::frame::{
-  AsRegion, Frame, Plane, PlaneConfig, PlaneOffset, PlaneSlice,
+use std::{
+  cmp,
+  iter::FusedIterator,
+  ops::{Index, IndexMut},
 };
-use crate::tiling::{Area, PlaneRegion, PlaneRegionMut, Rect};
-use crate::util::{clamp, CastFromPrimitive, ILog, Pixel};
+
+use crate::{
+  api::SGRComplexityLevel,
+  color::ChromaSampling::Cs400,
+  context::{MAX_PLANES, SB_SIZE},
+  encoder::FrameInvariants,
+  frame::{AsRegion, Frame, Plane, PlaneConfig, PlaneOffset, PlaneSlice},
+  tiling::{Area, PlaneRegion, PlaneRegionMut, Rect},
+  util::{clamp, CastFromPrimitive, ILog, Pixel},
+};
 
 cfg_if::cfg_if! {
   if #[cfg(nasm_x86_64)] {
@@ -163,14 +165,16 @@ impl RestorationFilter {
 }
 
 pub(crate) mod rust {
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::frame::PlaneSlice;
-  use crate::lrf::{
-    get_integral_square, sgrproj_sum_finish, SGRPROJ_RST_BITS,
-    SGRPROJ_SGR_BITS,
+  use crate::{
+    cpu_features::CpuFeatureLevel,
+    frame::PlaneSlice,
+    lrf::{
+      get_integral_square, sgrproj_sum_finish, SGRPROJ_RST_BITS,
+      SGRPROJ_SGR_BITS,
+    },
+    util::CastFromPrimitive,
+    Pixel,
   };
-  use crate::util::CastFromPrimitive;
-  use crate::Pixel;
 
   #[inline(always)]
   pub(crate) fn sgrproj_box_ab_internal<const BD: usize>(

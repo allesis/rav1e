@@ -11,13 +11,12 @@
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-
-use crate::context::av1_get_coded_tx_size;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::quantize::*;
-use crate::transform::TxSize;
-use crate::util::*;
 use std::mem::MaybeUninit;
+
+use crate::{
+  context::av1_get_coded_tx_size, cpu_features::CpuFeatureLevel, quantize::*,
+  transform::TxSize, util::*,
+};
 
 type DequantizeFn = unsafe fn(
   qindex: u8,
@@ -157,9 +156,12 @@ unsafe fn dequantize_avx2(
 
 #[cfg(test)]
 mod test {
+  use rand::{
+    distr::{Distribution, Uniform},
+    rng, Rng,
+  };
+
   use super::*;
-  use rand::distr::{Distribution, Uniform};
-  use rand::{rng, Rng};
 
   #[test]
   fn dequantize_test() {

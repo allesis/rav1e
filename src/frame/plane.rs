@@ -7,10 +7,9 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::tiling::*;
-use crate::util::*;
-
 pub use v_frame::plane::*;
+
+use crate::{tiling::*, util::*};
 
 pub trait AsRegion<T: Pixel> {
   fn as_region(&self) -> PlaneRegion<'_, T>;

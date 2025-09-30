@@ -7,15 +7,15 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::fmt;
+
 use itertools::*;
 
-use crate::api::color::*;
-use crate::api::config::GrainTableSegment;
-use crate::api::{Rational, SpeedSettings};
-use crate::encoder::Tune;
-use crate::serialize::{Deserialize, Serialize};
-
-use std::fmt;
+use crate::{
+  api::{color::*, config::GrainTableSegment, Rational, SpeedSettings},
+  encoder::Tune,
+  serialize::{Deserialize, Serialize},
+};
 
 // We add 1 to rdo_lookahead_frames in a bunch of places.
 pub(crate) const MAX_RDO_LOOKAHEAD_FRAMES: usize = usize::MAX - 1;

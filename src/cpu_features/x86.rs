@@ -7,9 +7,9 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::{env, str::FromStr};
+
 use arg_enum_proc_macro::ArgEnum;
-use std::env;
-use std::str::FromStr;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, ArgEnum)]
 pub enum CpuFeatureLevel {
@@ -140,7 +140,7 @@ macro_rules! cpu_function_lookup_table {
 
   // use $name_$key as our values
   ($pub:vis, $name:ident: [$type:ty], default: $empty:expr, [$($key:ident),*]) => {
-    paste::item!{
+    pastey::item!{
       cpu_function_lookup_table!(
         $pub, $name: [$type], default: $empty, [$(($key, [<$name _$key>])),*]
       );
@@ -149,7 +149,7 @@ macro_rules! cpu_function_lookup_table {
 
   // version for default visibility
   ($name:ident: [$type:ty], default: $empty:expr, [$($key:ident),*]) => {
-     paste::item!{
+     pastey::item!{
       cpu_function_lookup_table!(
         $name: [$type], default: $empty, [$(($key, [<$name _$key>])),*]
       );

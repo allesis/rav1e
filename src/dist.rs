@@ -18,13 +18,10 @@ cfg_if::cfg_if! {
 }
 
 pub(crate) mod rust {
-  use crate::activity::apply_ssim_boost;
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::tiling::*;
-  use crate::util::*;
-
-  use crate::encoder::IMPORTANCE_BLOCK_SIZE;
-  use crate::rdo::DistortionScale;
+  use crate::{
+    activity::apply_ssim_boost, cpu_features::CpuFeatureLevel,
+    encoder::IMPORTANCE_BLOCK_SIZE, rdo::DistortionScale, tiling::*, util::*,
+  };
 
   /// Compute the sum of absolute differences over a block.
   /// w and h can be at most 128, the size of the largest block.
@@ -375,10 +372,9 @@ pub(crate) mod rust {
 #[cfg(test)]
 pub mod test {
   use super::*;
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::frame::*;
-  use crate::tiling::Area;
-  use crate::util::Pixel;
+  use crate::{
+    cpu_features::CpuFeatureLevel, frame::*, tiling::Area, util::Pixel,
+  };
 
   // Generate plane data for get_sad_same()
   fn setup_planes<T: Pixel>() -> (Plane<T>, Plane<T>) {

@@ -7,24 +7,26 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use thiserror::Error;
-
-use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::Arc;
 
-use crate::api::{ChromaSampling, Context, ContextInner, PixelRange};
-use crate::util::Pixel;
+use rayon::{ThreadPool, ThreadPoolBuilder};
+use thiserror::Error;
+
+use crate::{
+  api::{ChromaSampling, Context, ContextInner, PixelRange},
+  util::Pixel,
+};
 
 mod encoder;
-pub use encoder::*;
-
 pub use av1_grain::*;
+pub use encoder::*;
 
 use crate::levels::*;
 
 mod rate;
-pub use rate::Error as RateControlError;
-pub use rate::{RateControlConfig, RateControlSummary};
+pub use rate::{
+  Error as RateControlError, RateControlConfig, RateControlSummary,
+};
 
 mod speedsettings;
 pub use speedsettings::*;

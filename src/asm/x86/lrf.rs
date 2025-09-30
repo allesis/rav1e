@@ -7,15 +7,15 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::frame::PlaneSlice;
-use crate::lrf::*;
-use crate::util::Pixel;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 use std::mem;
+
+use crate::{
+  cpu_features::CpuFeatureLevel, frame::PlaneSlice, lrf::*, util::Pixel,
+};
 
 // computes an intermediate (ab) row for stripe_w + 2 columns at row y
 #[inline]

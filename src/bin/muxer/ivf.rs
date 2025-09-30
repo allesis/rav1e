@@ -8,15 +8,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::Muxer;
-use crate::error::*;
+use std::{fs, fs::File, io, io::Write, path::Path};
+
 use ivf::*;
 use rav1e::prelude::*;
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::Write;
-use std::path::Path;
+
+use super::Muxer;
+use crate::error::*;
 
 pub struct IvfMuxer {
   output: Box<dyn Write + Send>,

@@ -7,11 +7,9 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::frame::*;
-use crate::rdo::DistortionScale;
-use crate::tiling::*;
-use crate::util::*;
 use itertools::izip;
+
+use crate::{frame::*, rdo::DistortionScale, tiling::*, util::*};
 
 #[derive(Debug, Default, Clone)]
 pub struct ActivityMask {
@@ -187,9 +185,10 @@ pub const fn apply_ssim_boost(
 
 #[cfg(test)]
 mod ssim_boost_tests {
-  use super::*;
   use interpolate_name::interpolate_test;
   use rand::Rng;
+
+  use super::*;
 
   /// Test to make sure extreme values of `ssim_boost` don't overflow.
   #[test]

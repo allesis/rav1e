@@ -9,23 +9,24 @@
 
 #[cfg(test)]
 mod test {
-  use interpolate_name::interpolate_test;
-  use rand::random;
   use std::mem::MaybeUninit;
 
-  use crate::context::MAX_TX_SIZE;
-  use crate::cpu_features::CpuFeatureLevel;
-  use crate::frame::{AsRegion, Plane};
-  use crate::partition::{BlockSize, IntraEdge};
-  use crate::predict::dispatch_predict_intra;
-  use crate::predict::pred_cfl_ac;
-  use crate::predict::rust;
-  use crate::predict::{
-    IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
+  use interpolate_name::interpolate_test;
+  use rand::random;
+
+  use crate::{
+    context::MAX_TX_SIZE,
+    cpu_features::CpuFeatureLevel,
+    frame::{AsRegion, Plane},
+    partition::{BlockSize, IntraEdge},
+    predict::{
+      dispatch_predict_intra, pred_cfl_ac, rust, IntraEdgeFilterParameters,
+      PredictionMode, PredictionVariant,
+    },
+    transform::TxSize,
+    util::{slice_assume_init_mut, Aligned},
+    Pixel,
   };
-  use crate::transform::TxSize;
-  use crate::util::{slice_assume_init_mut, Aligned};
-  use crate::Pixel;
 
   #[test]
   fn pred_matches() {

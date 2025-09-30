@@ -7,15 +7,17 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::color::ChromaSampling::Cs400;
-use crate::context::*;
-use crate::encoder::FrameInvariants;
-use crate::frame::*;
-use crate::tiling::*;
-use crate::util::{clamp, msb, CastFromPrimitive, Pixel};
-
-use crate::cpu_features::CpuFeatureLevel;
 use std::cmp;
+
+use crate::{
+  color::ChromaSampling::Cs400,
+  context::*,
+  cpu_features::CpuFeatureLevel,
+  encoder::FrameInvariants,
+  frame::*,
+  tiling::*,
+  util::{clamp, msb, CastFromPrimitive, Pixel},
+};
 
 cfg_if::cfg_if! {
   if #[cfg(nasm_x86_64)] {
@@ -44,9 +46,9 @@ pub struct CdefDirections {
 }
 
 pub(crate) mod rust {
-  use super::*;
-
   use simd_helpers::cold_for_target_arch;
+
+  use super::*;
 
   // Instead of dividing by n between 2 and 8, we multiply by 3*5*7*8/n.
   // The output is then 840 times larger, but we don't care for finding

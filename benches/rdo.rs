@@ -1,13 +1,12 @@
 use criterion::*;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-
-use rav1e::bench::cpu_features::*;
-use rav1e::bench::frame::AsRegion;
-use rav1e::bench::rdo;
-use rav1e::bench::rdo::DistortionScale;
-use rav1e::bench::tiling::Area;
-use rav1e::prelude::Plane;
+use rav1e::{
+  bench::{
+    cpu_features::*, frame::AsRegion, rdo, rdo::DistortionScale, tiling::Area,
+  },
+  prelude::Plane,
+};
 
 fn init_plane_u8(width: usize, height: usize, seed: u8) -> Plane<u8> {
   let mut ra = ChaChaRng::from_seed([seed; 32]);

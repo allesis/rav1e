@@ -8,32 +8,35 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![deny(missing_docs)]
 
-use crate::activity::ActivityMask;
-use crate::api::lookahead::*;
-use crate::api::{
-  EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35,
+use std::{
+  cmp,
+  collections::{BTreeMap, BTreeSet, HashMap},
+  env, fs,
+  path::PathBuf,
+  sync::{Arc, Mutex, RwLock},
 };
-use crate::color::ChromaSampling::Cs400;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::dist::get_satd;
-use crate::encoder::*;
-use crate::frame::*;
-use crate::partition::*;
-use crate::rate::{
-  RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,
-  FRAME_SUBTYPE_SEF,
-};
-use crate::scenechange::SceneChangeDetector;
-use crate::stats::EncoderStats;
-use crate::tiling::Area;
-use crate::util::Pixel;
+
 use arrayvec::ArrayVec;
-use std::cmp;
-use std::collections::{BTreeMap, BTreeSet};
-use std::env;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
+use av_scenechange::SceneChangeDetector;
+
+use crate::{
+  activity::ActivityMask,
+  api::{
+    EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35, lookahead::*,
+  },
+  color::ChromaSampling::Cs400,
+  dist::get_satd,
+  encoder::*,
+  frame::*,
+  partition::*,
+  rate::{
+    FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
+    RCState,
+  },
+  stats::EncoderStats,
+  tiling::Area,
+  util::Pixel,
+};
 
 /// The set of options that controls frame re-ordering and reference picture
 ///  selection.
@@ -259,6 +262,12 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
+  hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
+  new_hashmap: Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>,
+}
+
+pub struct HashObject {
+  pub cul_level: u8,
 }
 
 impl<T: Pixel> ContextInner<T> {
@@ -274,6 +283,31 @@ impl<T: Pixel> ContextInner<T> {
     let seq = Arc::new(Sequence::new(enc));
     let inter_cfg = InterConfig::new(enc);
     let lookahead_distance = inter_cfg.keyframe_lookahead_distance() as usize;
+    let mut keyframe_detector = SceneChangeDetector::new(
+      (enc.width, enc.height),
+      enc.bit_depth,
+      av_scenechange::Rational32::new(
+        enc.time_base.den as i32,
+        enc.time_base.num as i32,
+      ),
+      enc.chroma_sampling,
+      lookahead_distance,
+      match enc.speed_settings.scene_detection_mode {
+        super::SceneDetectionSpeed::Fast => {
+          av_scenechange::SceneDetectionSpeed::Fast
+        }
+        super::SceneDetectionSpeed::Standard => {
+          av_scenechange::SceneDetectionSpeed::Standard
+        }
+        super::SceneDetectionSpeed::None => {
+          av_scenechange::SceneDetectionSpeed::None
+        }
+      },
+      enc.min_key_frame_interval as usize,
+      enc.max_key_frame_interval as usize,
+      av_scenechange::CpuFeatureLevel::default(),
+    );
+    keyframe_detector.enable_cache();
 
     ContextInner {
       frame_count: 0,
@@ -288,12 +322,7 @@ impl<T: Pixel> ContextInner<T> {
       packet_data,
       gop_output_frameno_start: BTreeMap::new(),
       gop_input_frameno_start: BTreeMap::new(),
-      keyframe_detector: SceneChangeDetector::new(
-        enc.clone(),
-        CpuFeatureLevel::default(),
-        lookahead_distance,
-        seq.clone(),
-      ),
+      keyframe_detector,
       config: Arc::new(enc.clone()),
       seq,
       rc_state: RCState::new(
@@ -312,6 +341,14 @@ impl<T: Pixel> ContextInner<T> {
       next_lookahead_output_frameno: 0,
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
+      hashmap: Arc::new(RwLock::new(HashMap::new())),
+      new_hashmap: Arc::new(Mutex::new(vec![
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+      ])),
     }
   }
 
@@ -840,19 +877,16 @@ impl<T: Pixel> ContextInner<T> {
       .lookahead_intra_costs = self
       .keyframe_detector
       .intra_costs
-      .remove(&fi.input_frameno)
+      .as_mut()
+      .and_then(|intra_costs| intra_costs.remove(&(fi.input_frameno as usize)))
       .unwrap_or_else(|| {
-        let frame = self.frame_q[&fi.input_frameno].as_ref().unwrap();
-
-        let temp_plane = self
-          .keyframe_detector
-          .temp_plane
-          .get_or_insert_with(|| frame.planes[0].clone());
-
-        // We use the cached values from scenechange if available,
+        // We use the cached values from scenechange above if available,
         // otherwise we need to calculate them here.
+        let frame = self.frame_q[&fi.input_frameno].as_ref().unwrap();
+        let mut temp_plane = frame.planes[0].clone();
+
         estimate_intra_costs(
-          temp_plane,
+          &mut temp_plane,
           &**frame,
           fi.sequence.bit_depth,
           fi.cpu_feature_level,
@@ -869,8 +903,8 @@ impl<T: Pixel> ContextInner<T> {
     if keyframes_forced.contains(next_lookahead_frame)
       || keyframe_detector.analyze_next_frame(
         lookahead_frames,
-        *next_lookahead_frame,
-        *keyframes.iter().last().unwrap(),
+        *next_lookahead_frame as usize,
+        *keyframes.iter().last().unwrap() as usize,
       )
     {
       keyframes.insert(*next_lookahead_frame);
@@ -1374,7 +1408,13 @@ impl<T: Pixel> ContextInner<T> {
 
     if self.rc_state.needs_trial_encode(fti) {
       let mut trial_fs = frame_data.fs.clone();
-      let data = encode_frame(&frame_data.fi, &mut trial_fs, &self.inter_cfg);
+      let data = encode_frame(
+        &frame_data.fi,
+        &mut trial_fs,
+        &self.inter_cfg,
+        None,
+        None,
+      );
       self.rc_state.update_state(
         (data.len() * 8) as i64,
         fti,
@@ -1393,8 +1433,13 @@ impl<T: Pixel> ContextInner<T> {
       frame_data.fi.set_quantizers(&qps);
     }
 
-    let data =
-      encode_frame(&frame_data.fi, &mut frame_data.fs, &self.inter_cfg);
+    let data = encode_frame(
+      &frame_data.fi,
+      &mut frame_data.fs,
+      &self.inter_cfg,
+      Some(self.hashmap.clone()),
+      Some(self.new_hashmap.clone()),
+    );
     #[cfg(feature = "dump_lookahead_data")]
     {
       let input_frameno = frame_data.fi.input_frameno;
@@ -1460,6 +1505,18 @@ impl<T: Pixel> ContextInner<T> {
     let fi = &frame_data.fi;
 
     self.output_frameno += 1;
+    {
+      let mut hashmap_lock =
+        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
+      let mut new_hashmap_lock =
+        self.new_hashmap.lock().expect("FAILED TO LOCK NEW HASHMAP");
+      let new_hashmap_to_add = new_hashmap_lock.pop();
+      new_hashmap_to_add.expect("RAN OUT OF HASHMAPS").iter().for_each(|v| {
+        let (hash, value) = v;
+        hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
+      });
+      new_hashmap_lock.push(Vec::new());
+    }
 
     if fi.show_frame {
       let input_frameno = fi.input_frameno;

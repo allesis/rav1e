@@ -7,11 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cdef::*;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::frame::*;
-use crate::tiling::PlaneRegionMut;
-use crate::util::*;
+use crate::{
+  cdef::*, cpu_features::CpuFeatureLevel, frame::*, tiling::PlaneRegionMut,
+  util::*,
+};
 
 type CdefFilterFn = unsafe extern fn(
   dst: *mut u8,
@@ -292,15 +291,17 @@ cpu_function_lookup_table!(
 #[cfg(test)]
 mod test {
   pub const CDEF_HAVE_NONE: u8 = 0;
-  use super::*;
+  use std::str::FromStr;
+
   use interpolate_name::interpolate_test;
   use rand::random;
-  use std::str::FromStr;
+
+  use super::*;
 
   macro_rules! test_cdef_filter_block {
     ($(($XDEC:expr, $YDEC:expr)),*, $OPT:ident, $OPTLIT:literal) => {
       $(
-        paste::item! {
+        pastey::item! {
           #[interpolate_test(dir_0, 0)]
           #[interpolate_test(dir_1, 1)]
           #[interpolate_test(dir_2, 2)]
@@ -350,7 +351,7 @@ mod test {
   macro_rules! test_cdef_filter_block_hbd {
     ($(($XDEC:expr, $YDEC:expr)),*, $OPT:ident, $OPTLIT:literal) => {
       $(
-        paste::item! {
+        pastey::item! {
           #[interpolate_test(dir_0, 0)]
           #[interpolate_test(dir_1, 1)]
           #[interpolate_test(dir_2, 2)]
@@ -399,7 +400,7 @@ mod test {
 
   macro_rules! test_cdef_dir {
     ($OPT:ident, $OPTLIT:literal) => {
-      paste::item! {
+      pastey::item! {
         #[test]
         fn [<cdef_dir_ $OPT>]() {
           use crate::context::{TileSuperBlockOffset, SuperBlockOffset};
@@ -446,7 +447,7 @@ mod test {
 
   macro_rules! test_cdef_dir_hbd {
     ($OPT:ident, $OPTLIT:literal) => {
-      paste::item! {
+      pastey::item! {
         #[test]
         fn [<cdef_dir_ $OPT _hbd>]() {
           use crate::context::{TileSuperBlockOffset, SuperBlockOffset};

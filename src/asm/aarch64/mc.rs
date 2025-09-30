@@ -7,12 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::frame::*;
-use crate::mc::FilterMode::*;
-use crate::mc::*;
-use crate::tiling::*;
-use crate::util::*;
+use crate::{
+  cpu_features::CpuFeatureLevel,
+  frame::*,
+  mc::{FilterMode::*, *},
+  tiling::*,
+  util::*,
+};
 
 type PutFn = unsafe extern fn(
   dst: *mut u8,

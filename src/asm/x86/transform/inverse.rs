@@ -7,13 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::tiling::PlaneRegionMut;
-use crate::transform::inverse::*;
-use crate::transform::*;
-use crate::{Pixel, PixelType};
-
-use crate::asm::shared::transform::inverse::*;
+use crate::{
+  asm::shared::transform::inverse::*,
+  cpu_features::CpuFeatureLevel,
+  tiling::PlaneRegionMut,
+  transform::{inverse::*, *},
+  Pixel, PixelType,
+};
 
 pub fn inverse_transform_add<T: Pixel>(
   input: &[T::Coeff], output: &mut PlaneRegionMut<'_, T>, eob: u16,
@@ -70,7 +70,7 @@ macro_rules! decl_itx_fns {
   // Takes a 2d list of tx types for W and H
   ([$([$(($ENUM:expr, $TYPE1:ident, $TYPE2:ident)),*]),*], $W:expr, $H:expr,
    $OPT_LOWER:ident, $OPT_UPPER:ident) => {
-    paste::item! {
+    pastey::item! {
       // For each tx type, declare an function for the current WxH
       $(
         $(
@@ -101,7 +101,7 @@ macro_rules! decl_itx_hbd_fns {
   // Takes a 2d list of tx types for W and H
   ([$([$(($ENUM:expr, $TYPE1:ident, $TYPE2:ident)),*]),*], $W:expr, $H:expr, $BPC:expr,
    $OPT_LOWER:ident, $OPT_UPPER:ident) => {
-    paste::item! {
+    pastey::item! {
       // For each tx type, declare an function for the current WxH
       $(
         $(
@@ -132,7 +132,7 @@ macro_rules! decl_itx_hbd_fns {
 macro_rules! create_wxh_tables {
   // Create a lookup table for each cpu feature
   ([$([$(($W:expr, $H:expr)),*]),*], $OPT_LOWER:ident, $OPT_UPPER:ident) => {
-    paste::item! {
+    pastey::item! {
       const [<INV_TXFM_FNS_$OPT_UPPER>]: [[Option<InvTxfmFunc>; TX_TYPES_PLUS_LL]; TxSize::TX_SIZES_ALL] = {
         let mut out: [[Option<InvTxfmFunc>; TX_TYPES_PLUS_LL]; TxSize::TX_SIZES_ALL] =
           [[None; TX_TYPES_PLUS_LL]; TxSize::TX_SIZES_ALL];
@@ -158,7 +158,7 @@ macro_rules! create_wxh_tables {
 macro_rules! create_wxh_hbd_tables {
   // Create a lookup table for each cpu feature
   ([$([$(($W:expr, $H:expr)),*]),*], $EXT:ident, $BPC:expr, $OPT_LOWER:ident, $OPT_UPPER:ident) => {
-    paste::item! {
+    pastey::item! {
       const [<INV_TXFM_HBD_FNS $EXT _$OPT_UPPER>]: [[Option<InvTxfmHBDFunc>; TX_TYPES_PLUS_LL]; TxSize::TX_SIZES_ALL] = {
         let mut out: [[Option<InvTxfmHBDFunc>; TX_TYPES_PLUS_LL]; TxSize::TX_SIZES_ALL] =
           [[None; TX_TYPES_PLUS_LL]; TxSize::TX_SIZES_ALL];

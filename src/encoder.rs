@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2023, The rav1e contributors. All rights reserved
+// copyright (c) 2018-2023, the rav1e contributors. all rights reserved
 //
 // This source code is subject to the terms of the BSD 2 Clause License and
 // the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
@@ -7,48 +7,47 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use std::collections::VecDeque;
-use std::io::Write;
-use std::mem::MaybeUninit;
-use std::sync::Arc;
-use std::{fmt, io, mem};
+use std::{
+  collections::{HashMap, VecDeque},
+  fmt,
+  io::{self, Write},
+  mem::{self, MaybeUninit},
+  sync::{Arc, Mutex, RwLock},
+};
 
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
-use num_traits::ToPrimitive;
 use rayon::iter::*;
 
-use crate::activity::*;
-use crate::api::*;
-use crate::cdef::*;
-use crate::context::*;
-use crate::deblock::*;
-use crate::ec::*;
-use crate::frame::*;
-use crate::hash::hashcoeffs;
-use crate::header::*;
-use crate::lrf::*;
-use crate::mc::{FilterMode, MotionVector};
-use crate::me::*;
-use crate::partition::PartitionType::*;
-use crate::partition::RefType::*;
-use crate::partition::*;
-use crate::predict::{
-  luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+use crate::{
+  activity::*,
+  api::*,
+  cdef::*,
+  context::*,
+  deblock::*,
+  ec::*,
+  frame::*,
+  hash::hashcoeffs,
+  header::*,
+  lrf::*,
+  mc::{FilterMode, MotionVector},
+  me::*,
+  partition::{PartitionType::*, RefType::*, *},
+  predict::{
+    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
+  },
+  quantize::*,
+  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
+  rdo::*,
+  segmentation::*,
+  serialize::{Deserialize, Serialize},
+  stats::EncoderStats,
+  tiling::*,
+  transform::*,
+  util::*,
+  wasm_bindgen::*,
 };
-use crate::quantize::*;
-use crate::rate::{
-  QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE,
-};
-use crate::rdo::*;
-use crate::segmentation::*;
-use crate::serialize::{Deserialize, Serialize};
-use crate::stats::EncoderStats;
-use crate::tiling::*;
-use crate::transform::*;
-use crate::util::*;
-use crate::wasm_bindgen::*;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1431,6 +1430,9 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   pred_intra_param: IntraParam,
   rdo_type: RDOType,
   need_recon_pixel: bool,
+  // Optional Rc<HashMap> to build dict around
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
   let tile_rect = ts.tile_rect().decimated(xdec, ydec);
@@ -1453,9 +1455,18 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
 
   let plane_bsize = bsize.subsampled_size(xdec, ydec).unwrap();
 
-  debug_assert!(p != 0 || !mode.is_intra() || tx_size.block_size() == plane_bsize || need_recon_pixel,
+  debug_assert!(
+    p != 0
+      || !mode.is_intra()
+      || tx_size.block_size() == plane_bsize
+      || need_recon_pixel,
     "mode.is_intra()={:#?}, plane={:#?}, tx_size.block_size()={:#?}, plane_bsize={:#?}, need_recon_pixel={:#?}",
-    mode.is_intra(), p, tx_size.block_size(), plane_bsize, need_recon_pixel);
+    mode.is_intra(),
+    p,
+    tx_size.block_size(),
+    plane_bsize,
+    need_recon_pixel
+  );
 
   let ief_params = if mode.is_directional()
     && fi.sequence.enable_intra_edge_filter
@@ -1556,7 +1567,60 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
   let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+  dequantize(
+    qidx,
+    qcoeffs,
+    eob,
+    rcoeffs,
+    tx_size,
+    fi.sequence.bit_depth,
+    fi.dc_delta_q[p],
+    fi.ac_delta_q[p],
+    fi.cpu_feature_level,
+  );
+  // SAFETY: dequantize initialized rcoeffs
+  let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+  if eob == 0 {
+    // All zero coefficients is a no-op
+  } else if !fi.use_tx_domain_distortion || need_recon_pixel {
+    inverse_transform_add(
+      rcoeffs,
+      &mut rec.subregion_mut(area),
+      eob,
+      tx_size,
+      tx_type,
+      fi.sequence.bit_depth,
+      fi.cpu_feature_level,
+    );
+  }
+  let hash =
+    hashcoeffs::<T>(rcoeffs, eob, tx_type, tx_size.width(), tx_size.height());
 
+  // println!("HASH {:?} -> CF {:?}", hash, rcoeffs);
+  let mut marker = 0;
+  let mut cul_lvl = 0;
+
+  if eob != 0 {
+    if let Some(hashmap) = hashmap.clone() {
+      // We have a hashmap, we should attempt hash based encoding
+
+      // NOTE: This could either be a lock or a try_lock
+      // If a lock is used, we will wait until the hashmap is available to continue
+      // which may DESTROY performance
+      // If we use a try_lock, we may miss chances to decrease encoding size
+      // For now a lock will be used
+      let hashmap_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
+      match hashmap_lock.get(&hash) {
+        Some(hash_object) => {
+          // We have previously sent these coefficents
+          // Marker is 1
+          marker = 0b1;
+          cul_lvl = hash_object.cul_level;
+        }
+        None => {}
+      }
+    }
+  }
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
@@ -1566,8 +1630,7 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     let frame_clipped_txh: usize =
       (((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec)
         .min(tx_size.height());
-
-    cw.write_coeffs_lv_map(
+    let (res_val, cul_level) = cw.write_coeffs_lv_map(
       w,
       p,
       tx_bo,
@@ -1582,40 +1645,58 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       fi.use_reduced_tx_set,
       frame_clipped_txw,
       frame_clipped_txh,
-    )
+      cul_lvl,
+      hash,
+      marker,
+    );
+    cul_lvl = cul_level;
+    res_val
   } else {
     true
   };
 
-  // Reconstruct
-  dequantize(
-    qidx,
-    qcoeffs,
-    eob,
-    rcoeffs,
-    tx_size,
-    fi.sequence.bit_depth,
-    fi.dc_delta_q[p],
-    fi.ac_delta_q[p],
-    fi.cpu_feature_level,
-  );
-  // SAFETY: dequantize initialized rcoeffs
-  let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+  // EOB may have been dropped at this point so resetting it may be useless
 
-  if eob == 0 {
-    // All zero coefficients is a no-op
-  } else if !fi.use_tx_domain_distortion || need_recon_pixel {
-    inverse_transform_add(
-      rcoeffs,
-      &mut rec.subregion_mut(area),
-      eob,
-      tx_size,
-      tx_type,
-      fi.sequence.bit_depth,
-      fi.cpu_feature_level,
-    );
+  if let Some(hash_buffers) = hash_buffers {
+    // We have a hashmap, we should attempt hash based encoding
+
+    // NOTE: This could either be a lock or a try_lock
+    // If a lock is used, we will wait until the hashmap is available to continue
+    // which may DESTROY performance
+    // If we use a try_lock, we may miss chances to decrease encoding size
+    // For now a lock will be used
+    let mut hash_buffers_lock =
+      hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
+    let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
+    if marker == 0 && eob != 0 {
+      let hash_object = HashObject { cul_level: cul_lvl };
+      //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
+
+      hash_buffer.push((hash, hash_object));
+      //println!("HASH ADDED {:?}", hash);
+    }
   }
+  /*
+  let mut has_hash = false;
+  match hashmap {
+    Some(ref hashmap) => {
+      let hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
+      match hashmap_guard.get(&hash) {
+        Some(hash_object) => {
+          hash.to_le_bytes().iter().enumerate().for_each(|(i, b)| {
+            coeffs[i] = T::Coeff::cast_from(*b);
+          });
+          has_hash = true;
+        }
+        None => {}
+      }
+    }
+    None => {}
+  }
+  w.bit(has_hash as u16);
+  */
 
+  // Reconstruct
   let tx_dist =
     if rdo_type.needs_tx_dist() && visible_tx_w != 0 && visible_tx_h != 0 {
       // Store tx-domain distortion of this block
@@ -1658,6 +1739,27 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     } else {
       ScaledDistortion::zero()
     };
+  /*
+  if has_coeff {
+    match hashmap {
+      Some(hashmap) => {
+        let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
+        hashmap_guard.insert(
+          hash,
+          HashObject {
+            coeffs: qcoeffs
+              .iter()
+              .map(|p| p.clone().to_u8().unwrap_or(0))
+              .collect(),
+            hash_coeffs: has_coeff,
+            tx_dist: ScaledDistortion(tx_dist.0),
+            cul_level,
+          },
+        );
+      }
+      None => (),
+    }
+  }*/
 
   (has_coeff, tx_dist)
 }
@@ -1945,6 +2047,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
   tx_type: TxType, mode_context: usize, mv_stack: &[CandidateMV],
   rdo_type: RDOType, need_recon_pixel: bool,
   enc_stats: Option<&mut EncoderStats>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -2216,6 +2320,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       false,
       rdo_type,
       need_recon_pixel,
+      hashmap.clone(),
+      hash_buffers.clone(),
     )
   } else {
     write_tx_blocks(
@@ -2235,6 +2341,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       false,
       rdo_type,
       need_recon_pixel,
+      hashmap.clone(),
+      hash_buffers.clone(),
     )
   }
 }
@@ -2249,6 +2357,8 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
   tile_bo: TileBlockOffset, bsize: BlockSize, tx_size: TxSize,
   tx_type: TxType, skip: bool, cfl: CFLParams, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   let bw = bsize.width_mi() / tx_size.width_mi();
   let bh = bsize.height_mi() / tx_size.height_mi();
@@ -2306,6 +2416,8 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
         IntraParam::AngleDelta(angle_delta.y),
         rdo_type,
         need_recon_pixel,
+        hashmap.clone(),
+        hash_buffers.clone(),
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2398,6 +2510,8 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
           },
           rdo_type,
           need_recon_pixel,
+          hashmap.clone(),
+          hash_buffers.clone(),
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
@@ -2414,6 +2528,8 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
   angle_delta_y: i8, tile_bo: TileBlockOffset, bsize: BlockSize,
   tx_size: TxSize, tx_type: TxType, skip: bool, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (bool, ScaledDistortion) {
   if skip {
     return (false, ScaledDistortion::zero());
@@ -2471,6 +2587,8 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
         IntraParam::AngleDelta(angle_delta_y),
         rdo_type,
         need_recon_pixel,
+        hashmap.clone(),
+        hash_buffers.clone(),
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2555,6 +2673,8 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
           IntraParam::AngleDelta(angle_delta_y),
           rdo_type,
           need_recon_pixel,
+          hashmap.clone(),
+          hash_buffers.clone(),
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
@@ -2572,6 +2692,8 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   mode_decision: &PartitionParameters, rdo_type: RDOType,
   enc_stats: Option<&mut EncoderStats>,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) {
   let (mode_luma, mode_chroma) =
     (mode_decision.pred_mode_luma, mode_decision.pred_mode_chroma);
@@ -2593,7 +2715,17 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   let (tx_size, tx_type) = if !mode_decision.skip && !mode_decision.has_coeff {
     skip = true;
     rdo_tx_size_type(
-      fi, ts, cw, bsize, tile_bo, mode_luma, ref_frames, mvs, skip,
+      fi,
+      ts,
+      cw,
+      bsize,
+      tile_bo,
+      mode_luma,
+      ref_frames,
+      mvs,
+      skip,
+      hashmap.clone(),
+      hash_buffers.clone(),
     )
   } else {
     (mode_decision.tx_size, mode_decision.tx_type)
@@ -2629,6 +2761,8 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
     rdo_type,
     true,
     enc_stats,
+    hashmap.clone(),
+    hash_buffers.clone(),
   );
 }
 
@@ -2638,6 +2772,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
   cw: &mut ContextWriter, w_pre_cdef: &mut W, w_post_cdef: &mut W,
   bsize: BlockSize, tile_bo: TileBlockOffset, ref_rd_cost: f64,
   inter_cfg: &InterConfig, enc_stats: &mut EncoderStats,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> PartitionGroupParameters {
   let rdo_type = RDOType::PixelDistRealRate;
   let mut rd_cost = f64::MAX;
@@ -2693,8 +2829,16 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       0.0
     };
 
-    let mode_decision =
-      rdo_mode_decision(fi, ts, cw, bsize, tile_bo, inter_cfg);
+    let mode_decision = rdo_mode_decision(
+      fi,
+      ts,
+      cw,
+      bsize,
+      tile_bo,
+      inter_cfg,
+      hashmap.clone(),
+      hash_buffers.clone(),
+    );
 
     if !mode_decision.pred_mode_luma.is_intra() {
       // Fill the saved motion structure
@@ -2725,6 +2869,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
         &mode_decision,
         rdo_type,
         Some(enc_stats),
+        hashmap.clone(),
+        hash_buffers.clone(),
       );
     }
   } // if !must_split
@@ -2815,6 +2961,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           best_rd,
           inter_cfg,
           enc_stats,
+          hashmap.clone(),
+          hash_buffers.clone(),
         );
         let cost = child_rdo_output.rd_cost;
         assert!(cost >= 0.0);
@@ -2888,6 +3036,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           &mode,
           rdo_type,
           Some(enc_stats),
+          hashmap.clone(),
+          hash_buffers.clone(),
         );
       }
     }
@@ -2922,6 +3072,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   block_output: &Option<PartitionGroupParameters>, inter_cfg: &InterConfig,
   enc_stats: &mut EncoderStats,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) {
   if tile_bo.0.x >= ts.mi_width || tile_bo.0.y >= ts.mi_height {
     return;
@@ -2972,6 +3124,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
       &[PartitionType::PARTITION_SPLIT, PartitionType::PARTITION_NONE],
       rdo_type,
       inter_cfg,
+      hashmap.clone(),
+      hash_buffers.clone(),
     );
     rdo_output.part_type
   } else {
@@ -2997,8 +3151,16 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
           part_mode
         } else {
           // Make a prediction mode decision for blocks encoded with no rdo_partition_decision call (e.g. edges)
-          rdo_decision =
-            rdo_mode_decision(fi, ts, cw, bsize, tile_bo, inter_cfg);
+          rdo_decision = rdo_mode_decision(
+            fi,
+            ts,
+            cw,
+            bsize,
+            tile_bo,
+            inter_cfg,
+            hashmap.clone(),
+            hash_buffers.clone(),
+          );
           &rdo_decision
         };
 
@@ -3019,7 +3181,17 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
       // because, with top-down partition RDO, the neighboring contexts
       // of current partition can change, i.e. neighboring partitions can split down more.
       let (tx_size, tx_type) = rdo_tx_size_type(
-        fi, ts, cw, bsize, tile_bo, mode_luma, ref_frames, mvs, skip,
+        fi,
+        ts,
+        cw,
+        bsize,
+        tile_bo,
+        mode_luma,
+        ref_frames,
+        mvs,
+        skip,
+        hashmap.clone(),
+        hash_buffers.clone(),
       );
 
       let mut mv_stack = ArrayVec::<CandidateMV, 9>::new();
@@ -3147,6 +3319,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         RDOType::PixelDistRealRate,
         true,
         Some(enc_stats),
+        hashmap.clone(),
+        hash_buffers.clone(),
       );
     }
     PARTITION_SPLIT | PARTITION_HORZ | PARTITION_VERT => {
@@ -3171,6 +3345,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             }),
             inter_cfg,
             enc_stats,
+            hashmap.clone(),
+            hash_buffers.clone(),
           );
         }
       } else {
@@ -3206,6 +3382,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             &None,
             inter_cfg,
             enc_stats,
+            hashmap.clone(),
+            hash_buffers.clone(),
           );
         });
       }
@@ -3238,6 +3416,8 @@ fn get_initial_cdfcontext<T: Pixel>(fi: &FrameInvariants<T>) -> CDFContext {
 #[profiling::function]
 fn encode_tile_group<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> Vec<u8> {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -3254,7 +3434,15 @@ fn encode_tile_group<T: Pixel>(
     .collect::<Vec<_>>()
     .into_par_iter()
     .map(|(mut ctx, cdf)| {
-      encode_tile(fi, &mut ctx.ts, cdf, &mut ctx.tb, inter_cfg)
+      encode_tile(
+        fi,
+        &mut ctx.ts,
+        cdf,
+        &mut ctx.tb,
+        inter_cfg,
+        hashmap.clone(),
+        hash_buffers.clone(),
+      )
     })
     .unzip();
 
@@ -3471,6 +3659,8 @@ fn encode_tile<'a, T: Pixel>(
   fi: &FrameInvariants<T>, ts: &'a mut TileStateMut<'_, T>,
   fc: &'a mut CDFContext, blocks: &'a mut TileBlocksMut<'a>,
   inter_cfg: &InterConfig,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> (Vec<u8>, EncoderStats) {
   let mut enc_stats = EncoderStats::default();
   let mut w = WriterEncoder::new();
@@ -3525,6 +3715,8 @@ fn encode_tile<'a, T: Pixel>(
           f64::MAX,
           inter_cfg,
           &mut enc_stats,
+          hashmap.clone(),
+          hash_buffers.clone(),
         );
       } else {
         encode_partition_topdown(
@@ -3538,6 +3730,8 @@ fn encode_tile<'a, T: Pixel>(
           &None,
           inter_cfg,
           &mut enc_stats,
+          hashmap.clone(),
+          hash_buffers.clone(),
         );
       }
 
@@ -3769,6 +3963,8 @@ fn get_initial_segmentation<T: Pixel>(
 #[profiling::function]
 pub fn encode_frame<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
+  hashmap: Option<Arc<RwLock<HashMap<u32, HashObject>>>>,
+  hash_buffers: Option<Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>>,
 ) -> Vec<u8> {
   debug_assert!(!fi.is_show_existing_frame());
   let obu_extension = 0;
@@ -3779,7 +3975,13 @@ pub fn encode_frame<T: Pixel>(
     fs.segmentation = get_initial_segmentation(fi);
     segmentation_optimize(fi, fs);
   }
-  let tile_group = encode_tile_group(fi, fs, inter_cfg);
+  let tile_group = encode_tile_group(
+    fi,
+    fs,
+    inter_cfg,
+    hashmap.clone(),
+    hash_buffers.clone(),
+  );
 
   if fi.frame_type == FrameType::KEY {
     write_key_frame_obus(&mut packet, fi, obu_extension).unwrap();

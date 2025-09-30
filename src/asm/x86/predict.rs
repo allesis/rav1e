@@ -7,16 +7,20 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::cpu_features::CpuFeatureLevel;
-use crate::partition::{BlockSize, IntraEdge};
-use crate::predict::{
-  rust, IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
-};
-use crate::tiling::{PlaneRegion, PlaneRegionMut};
-use crate::transform::TxSize;
-use crate::Pixel;
 use std::mem::MaybeUninit;
+
 use v_frame::pixel::PixelType;
+
+use crate::{
+  cpu_features::CpuFeatureLevel,
+  partition::{BlockSize, IntraEdge},
+  predict::{
+    rust, IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
+  },
+  tiling::{PlaneRegion, PlaneRegionMut},
+  transform::TxSize,
+  Pixel,
+};
 
 macro_rules! decl_angular_ipred_fn {
   ($($f:ident),+) => {

@@ -1,13 +1,15 @@
 #[cfg(feature = "binaries")]
 mod binary {
+  use std::{
+    env::temp_dir,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+  };
+
   use assert_cmd::Command;
   use interpolate_name::interpolate_test;
-  use rand::distr::Alphanumeric;
-  use rand::{rng, Rng};
-  use std::env::temp_dir;
-  use std::fs::File;
-  use std::io::Read;
-  use std::path::{Path, PathBuf};
+  use rand::{distr::Alphanumeric, rng, Rng};
 
   fn get_y4m_input() -> Vec<u8> {
     let mut input = File::open(format!(

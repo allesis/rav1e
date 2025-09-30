@@ -1,22 +1,23 @@
 #![allow(clippy::unit_arg)]
 
+use std::sync::Arc;
+
 use criterion::*;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use rav1e::bench::context::BlockContext;
-use rav1e::bench::context::CDFContext;
-use rav1e::bench::context::ContextWriter;
-use rav1e::bench::context::FrameBlocks;
-use rav1e::bench::cpu_features::*;
-use rav1e::bench::encoder::FrameState;
-use rav1e::bench::encoder::{motion_compensate, FrameInvariants};
-use rav1e::bench::frame::{AsRegion, PlaneOffset, PlaneSlice};
-use rav1e::bench::mc::*;
-use rav1e::bench::partition::RefType;
-use rav1e::bench::util::Aligned;
-use rav1e::context::{BlockOffset, TileBlockOffset};
-use rav1e::prelude::*;
-use std::sync::Arc;
+use rav1e::{
+  bench::{
+    context::{BlockContext, CDFContext, ContextWriter, FrameBlocks},
+    cpu_features::*,
+    encoder::{motion_compensate, FrameInvariants, FrameState},
+    frame::{AsRegion, PlaneOffset, PlaneSlice},
+    mc::*,
+    partition::RefType,
+    util::Aligned,
+  },
+  context::{BlockOffset, TileBlockOffset},
+  prelude::*,
+};
 
 fn bench_put_8tap_top_left_lbd(c: &mut Criterion) {
   let mut ra = ChaChaRng::from_seed([0; 32]);

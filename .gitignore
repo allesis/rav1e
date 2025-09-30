@@ -9,3 +9,5 @@ secret_key
 .vscode/
 .idea/
 .direnv
+*.txt
+*.jpg

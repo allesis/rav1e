@@ -9,12 +9,13 @@
 
 use std::cmp;
 
-use crate::api::color::ChromaSampling;
-use crate::api::ContextInner;
-use crate::encoder::TEMPORAL_DELIMITER;
-use crate::quantize::{ac_q, dc_q, select_ac_qi, select_dc_qi};
-use crate::util::{
-  bexp64, bexp_q24, blog64, clamp, q24_to_q57, q57, q57_to_q24, Pixel,
+use crate::{
+  api::{color::ChromaSampling, ContextInner},
+  encoder::TEMPORAL_DELIMITER,
+  quantize::{ac_q, dc_q, select_ac_qi, select_dc_qi},
+  util::{
+    bexp64, bexp_q24, blog64, clamp, q24_to_q57, q57, q57_to_q24, Pixel,
+  },
 };
 
 // The number of frame sub-types for which we track distinct parameters.
@@ -518,8 +519,7 @@ fn chroma_offset(
     ChromaSampling::Cs422 => (x >> 3) + (x >> 4) - (x >> 7), // 0.180
     ChromaSampling::Cs444 => (x >> 4) + (x >> 5) + (x >> 8), // 0.098
   };
-  // blog64(7) - blog64(4); blog64(5) - blog64(4)
-  (0x19D_5D9F_D501_0B37 - y, 0xA4_D3C2_5E68_DC58 - y)
+  (const { blog64(7) - blog64(4) } - y, const { blog64(5) - blog64(4) } - y)
 }
 
 impl QuantizerParameters {

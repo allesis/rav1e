@@ -7,12 +7,11 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::encoder::FrameInvariants;
-use crate::prelude::*;
-
 use std::sync::Arc;
 
 use interpolate_name::interpolate_test;
+
+use crate::{encoder::FrameInvariants, prelude::*};
 
 fn setup_config(
   w: usize, h: usize, speed: u8, quantizer: usize, bit_depth: usize,

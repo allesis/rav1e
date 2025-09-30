@@ -10,20 +10,21 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
-use self::BlockSize::*;
-use self::TxSize::*;
-use crate::context::*;
-use crate::frame::*;
-use crate::predict::*;
-use crate::recon_intra::*;
-use crate::serialize::{Deserialize, Serialize};
-use crate::tiling::*;
-use crate::transform::TxSize;
-use crate::util::*;
+use std::mem::{transmute, MaybeUninit};
+
 use thiserror::Error;
 
-use std::mem::transmute;
-use std::mem::MaybeUninit;
+use self::{BlockSize::*, TxSize::*};
+use crate::{
+  context::*,
+  frame::*,
+  predict::*,
+  recon_intra::*,
+  serialize::{Deserialize, Serialize},
+  tiling::*,
+  transform::TxSize,
+  util::*,
+};
 
 // LAST_FRAME through ALTREF_FRAME correspond to slots 0-6.
 #[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug)]
@@ -67,9 +68,9 @@ impl RefType {
   }
 }
 
+use std::{fmt, fmt::Display};
+
 use self::RefType::*;
-use std::fmt;
-use std::fmt::Display;
 
 pub const ALL_INTER_REFS: [RefType; 7] = [
   LAST_FRAME,
@@ -1014,8 +1015,7 @@ pub fn has_bl(bo: TileBlockOffset, bsize: BlockSize) -> bool {
 
 #[cfg(test)]
 mod tests {
-  use crate::partition::BlockSize::*;
-  use crate::partition::{BlockSize, InvalidBlockSize};
+  use crate::partition::{BlockSize, BlockSize::*, InvalidBlockSize};
 
   #[test]
   fn from_wh_matches_naive() {

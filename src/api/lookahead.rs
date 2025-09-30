@@ -1,24 +1,24 @@
-use crate::api::internal::InterConfig;
-use crate::config::EncoderConfig;
-use crate::context::{BlockOffset, FrameBlocks, TileBlockOffset};
-use crate::cpu_features::CpuFeatureLevel;
-use crate::dist::get_satd;
-use crate::encoder::{
-  FrameInvariants, FrameState, Sequence, IMPORTANCE_BLOCK_SIZE,
-};
-use crate::frame::{AsRegion, PlaneOffset};
-use crate::me::{estimate_tile_motion, RefMEStats};
-use crate::partition::{get_intra_edges, BlockSize};
-use crate::predict::{IntraParam, PredictionMode};
-use crate::tiling::{Area, PlaneRegion, TileRect};
-use crate::transform::TxSize;
-use crate::util::Aligned;
-use crate::Pixel;
-use rayon::iter::*;
 use std::sync::Arc;
-use v_frame::frame::Frame;
-use v_frame::pixel::CastFromPrimitive;
-use v_frame::plane::Plane;
+
+use rayon::iter::*;
+use v_frame::{frame::Frame, pixel::CastFromPrimitive, plane::Plane};
+
+use crate::{
+  api::internal::InterConfig,
+  config::EncoderConfig,
+  context::{BlockOffset, FrameBlocks, TileBlockOffset},
+  cpu_features::CpuFeatureLevel,
+  dist::get_satd,
+  encoder::{FrameInvariants, FrameState, Sequence, IMPORTANCE_BLOCK_SIZE},
+  frame::{AsRegion, PlaneOffset},
+  me::{estimate_tile_motion, RefMEStats},
+  partition::{get_intra_edges, BlockSize},
+  predict::{IntraParam, PredictionMode},
+  tiling::{Area, PlaneRegion, TileRect},
+  transform::TxSize,
+  util::Aligned,
+  Pixel,
+};
 
 pub(crate) const IMP_BLOCK_MV_UNITS_PER_PIXEL: i64 = 8;
 pub(crate) const IMP_BLOCK_SIZE_IN_MV_UNITS: i64 =

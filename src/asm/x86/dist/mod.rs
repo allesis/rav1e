@@ -7,13 +7,11 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-pub use self::cdef_dist::*;
-pub use self::sse::*;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::dist::*;
-use crate::partition::BlockSize;
-use crate::tiling::*;
-use crate::util::*;
+pub use self::{cdef_dist::*, sse::*};
+use crate::{
+  cpu_features::CpuFeatureLevel, dist::*, partition::BlockSize, tiling::*,
+  util::*,
+};
 
 mod cdef_dist;
 mod sse;
@@ -393,7 +391,7 @@ pub fn get_satd<T: Pixel>(
 macro_rules! get_sad_hbd_ssse3 {
   ($(($W:expr, $H:expr, $BS:expr)),*) => {
     $(
-      paste::item! {
+      pastey::item! {
         #[target_feature(enable = "ssse3")]
         unsafe extern fn [<rav1e_sad_ $W x $H _hbd_ssse3>](
           src: *const u16, src_stride: isize, dst: *const u16, dst_stride: isize,
@@ -443,7 +441,7 @@ get_sad_hbd_ssse3!(
 macro_rules! get_sad_hbd_avx2_WxH {
   ($(($W:expr, $H:expr)),*) => {
     $(
-      paste::item! {
+      pastey::item! {
         #[target_feature(enable = "avx2")]
         unsafe extern fn [<rav1e_sad_ $W x $H _hbd_avx2>](
           src: *const u16, src_stride: isize, dst: *const u16, dst_stride: isize,
@@ -730,15 +728,17 @@ cpu_function_lookup_table!(
 
 #[cfg(test)]
 mod test {
+  use std::str::FromStr;
+
+  use rand::random;
+
   use super::*;
   use crate::frame::{AsRegion, Plane};
-  use rand::random;
-  use std::str::FromStr;
 
   macro_rules! test_dist_fns {
     ($(($W:expr, $H:expr)),*, $DIST_TY:ident, $BD:expr, $OPT:ident, $OPTLIT:tt) => {
       $(
-        paste::item! {
+        pastey::item! {
           #[test]
           fn [<get_ $DIST_TY _ $W x $H _bd_ $BD _ $OPT>]() {
             if CpuFeatureLevel::default() < CpuFeatureLevel::from_str($OPTLIT).unwrap() {

@@ -7,12 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::activity::apply_ssim_boost;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::dist::*;
-use crate::tiling::PlaneRegion;
-use crate::util::Pixel;
-use crate::util::PixelType;
+use crate::{
+  activity::apply_ssim_boost,
+  cpu_features::CpuFeatureLevel,
+  dist::*,
+  tiling::PlaneRegion,
+  util::{Pixel, PixelType},
+};
 
 type CdefDistKernelFn = unsafe extern fn(
   src: *const u8,

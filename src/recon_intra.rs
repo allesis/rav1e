@@ -11,10 +11,11 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
-use crate::context::*;
-use crate::partition::BlockSize::*;
-use crate::partition::*;
-use crate::transform::*;
+use crate::{
+  context::*,
+  partition::{BlockSize::*, *},
+  transform::*,
+};
 
 static has_null: &[u8] = &[];
 

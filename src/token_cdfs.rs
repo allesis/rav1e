@@ -9,9 +9,7 @@
 
 #![allow(non_upper_case_globals)]
 
-use crate::context::*;
-use crate::transform::*;
-use crate::util::*;
+use crate::{context::*, transform::*, util::*};
 
 const TOKEN_CDF_Q_CTXS: usize = 4;
 

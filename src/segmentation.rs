@@ -7,15 +7,15 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::context::*;
-use crate::header::PRIMARY_REF_NONE;
-use crate::partition::BlockSize;
-use crate::rdo::spatiotemporal_scale;
-use crate::rdo::DistortionScale;
-use crate::tiling::TileStateMut;
-use crate::util::Pixel;
-use crate::FrameInvariants;
-use crate::FrameState;
+use crate::{
+  context::*,
+  header::PRIMARY_REF_NONE,
+  partition::BlockSize,
+  rdo::{spatiotemporal_scale, DistortionScale},
+  tiling::TileStateMut,
+  util::Pixel,
+  FrameInvariants, FrameState,
+};
 
 pub const MAX_SEGMENTS: usize = 8;
 
@@ -77,9 +77,12 @@ pub fn segmentation_optimize<T: Pixel>(
 fn segmentation_optimize_inner<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, offset_lower_limit: i16,
 ) {
-  use crate::quantize::{ac_q, select_ac_qi};
-  use crate::util::kmeans;
   use arrayvec::ArrayVec;
+
+  use crate::{
+    quantize::{ac_q, select_ac_qi},
+    util::kmeans,
+  };
 
   // Minimize the total distance from a small set of values to all scales.
   // Find k-means of log(spatiotemporal scale), k in 3..=8

@@ -43,11 +43,15 @@ pub fn cast_mut<const N: usize, T>(x: &mut [T]) -> &mut [T; N] {
 
 #[cfg(test)]
 mod test {
-  use crate::cpu_features::*;
-  use crate::transform::{forward_transform, get_valid_txfm_types, TxSize};
-  use crate::util::slice_assume_init_mut;
-  use rand::Rng;
   use std::mem::MaybeUninit;
+
+  use rand::Rng;
+
+  use crate::{
+    cpu_features::*,
+    transform::{forward_transform, get_valid_txfm_types, TxSize},
+    util::slice_assume_init_mut,
+  };
 
   // Ensure that the simd results match the rust code
   #[test]

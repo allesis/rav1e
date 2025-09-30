@@ -515,8 +515,7 @@ mod test {
     cdf_map.lookup(f.as_ptr() as usize);
   }
 
-  use super::CFLSign;
-  use super::CFLSign::*;
+  use super::{CFLSign, CFLSign::*};
 
   static cfl_alpha_signs: [[CFLSign; 2]; 8] = [
     [CFL_SIGN_ZERO, CFL_SIGN_NEG],

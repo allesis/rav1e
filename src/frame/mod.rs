@@ -9,12 +9,13 @@
 
 use num_derive::FromPrimitive;
 
-use crate::api::{Opaque, T35};
-use crate::context::SB_SIZE;
-use crate::mc::SUBPEL_FILTER_SIZE;
-use crate::util::*;
-
-use crate::tiling::*;
+use crate::{
+  api::{Opaque, T35},
+  context::SB_SIZE,
+  mc::SUBPEL_FILTER_SIZE,
+  tiling::*,
+  util::*,
+};
 
 mod plane;
 pub use plane::*;

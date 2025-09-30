@@ -7,12 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::*;
 use std::hash::Hash;
 
-use crate::context::*;
-use crate::frame::*;
-use crate::util::*;
+use super::*;
+use crate::{context::*, frame::*, util::*};
 
 /// Rectangle of a tile, in pixels
 ///

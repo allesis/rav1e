@@ -7,15 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::context::*;
-use crate::encoder::FrameInvariants;
-use crate::lrf::*;
-use crate::util::Pixel;
+use std::{
+  marker::PhantomData,
+  ops::{Index, IndexMut},
+  ptr, slice,
+};
 
-use std::marker::PhantomData;
-use std::ops::{Index, IndexMut};
-use std::ptr;
-use std::slice;
+use crate::{context::*, encoder::FrameInvariants, lrf::*, util::Pixel};
 
 /// Tiled view of `RestorationUnits`
 #[derive(Debug)]

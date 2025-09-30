@@ -7,9 +7,10 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::ec::rust;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use crate::ec::rust;
 
 #[inline(always)]
 pub fn update_cdf<const N: usize>(cdf: &mut [u16; N], val: u32) {

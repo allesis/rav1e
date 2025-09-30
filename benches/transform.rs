@@ -7,15 +7,16 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
+use std::mem::MaybeUninit;
+
 use criterion::*;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-use rav1e::bench::cpu_features::*;
-use rav1e::bench::transform;
-use rav1e::bench::transform::{
-  forward_transform, get_valid_txfm_types, TxSize,
+use rav1e::bench::{
+  cpu_features::*,
+  transform,
+  transform::{forward_transform, get_valid_txfm_types, TxSize},
 };
-use std::mem::MaybeUninit;
 
 fn init_buffers(size: usize) -> (Vec<i32>, Vec<i32>) {
   let mut ra = ChaChaRng::from_seed([0; 32]);

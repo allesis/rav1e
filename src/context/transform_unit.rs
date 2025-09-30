@@ -7,11 +7,13 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use super::*;
-use crate::predict::PredictionMode;
-use crate::predict::PredictionMode::*;
-use crate::transform::TxType::*;
 use std::mem::MaybeUninit;
+
+use super::*;
+use crate::{
+  predict::{PredictionMode, PredictionMode::*},
+  transform::TxType::*,
+};
 
 pub const MAX_TX_SIZE: usize = 64;
 

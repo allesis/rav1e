@@ -14,23 +14,19 @@ mod predict;
 mod rdo;
 mod transform;
 
-use rav1e::bench::api::*;
-use rav1e::bench::cdef::*;
-use rav1e::bench::context::*;
-use rav1e::bench::ec::*;
-use rav1e::bench::encoder::*;
-use rav1e::bench::partition::*;
-use rav1e::bench::predict::*;
-use rav1e::bench::rdo::*;
-use rav1e::bench::transform::*;
-
-use crate::plane::plane;
-use crate::rdo::rdo;
-use crate::transform::{forward_transforms, inverse_transforms};
+use std::{sync::Arc, time::Duration};
 
 use criterion::*;
-use std::sync::Arc;
-use std::time::Duration;
+use rav1e::bench::{
+  api::*, cdef::*, context::*, ec::*, encoder::*, partition::*, predict::*,
+  rdo::*, transform::*,
+};
+
+use crate::{
+  plane::plane,
+  rdo::rdo,
+  transform::{forward_transforms, inverse_transforms},
+};
 
 fn write_b(c: &mut Criterion) {
   for &tx_size in &[TxSize::TX_4X4, TxSize::TX_8X8] {

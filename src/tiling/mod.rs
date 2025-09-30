@@ -17,10 +17,7 @@ mod tile_restoration_state;
 mod tile_state;
 mod tiler;
 
-pub use self::plane_region::*;
-pub use self::tile::*;
-pub use self::tile_blocks::*;
-pub use self::tile_motion_stats::*;
-pub use self::tile_restoration_state::*;
-pub use self::tile_state::*;
-pub use self::tiler::*;
+pub use self::{
+  plane_region::*, tile::*, tile_blocks::*, tile_motion_stats::*,
+  tile_restoration_state::*, tile_state::*, tiler::*,
+};

@@ -7,20 +7,20 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use crate::asm::shared::transform::forward::*;
-use crate::cpu_features::CpuFeatureLevel;
-use crate::transform::forward::rust;
-use crate::transform::forward_shared::*;
-use crate::transform::*;
-use crate::util::*;
-use std::mem::MaybeUninit;
-
-use debug_unreachable::debug_unreachable;
-
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+use std::mem::MaybeUninit;
+
+use debug_unreachable::debug_unreachable;
+
+use crate::{
+  asm::shared::transform::forward::*,
+  cpu_features::CpuFeatureLevel,
+  transform::{forward::rust, forward_shared::*, *},
+  util::*,
+};
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[derive(Copy, Clone)]

@@ -8,18 +8,16 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 #![allow(missing_docs)]
 
-use crate::api::config::*;
-use crate::api::context::RcData;
-use crate::api::internal::ContextInner;
-use crate::api::util::*;
+use std::sync::Arc;
 
 use crossbeam::channel::*;
-
-use crate::rate::RCState;
-use crate::util::Pixel;
-
 use rayon::ThreadPool;
-use std::sync::Arc;
+
+use crate::{
+  api::{config::*, context::RcData, internal::ContextInner, util::*},
+  rate::RCState,
+  util::Pixel,
+};
 
 mod data;
 pub use data::{

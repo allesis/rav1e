@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
+use std::fmt;
+
 use serde::{ser, Serialize, Serializer};
 use thiserror::*;
-
-use std::fmt;
 
 struct KVString {
   output: String,

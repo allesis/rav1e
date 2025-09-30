@@ -7,8 +7,7 @@
 // Media Patent License 1.0 was not distributed with this source code in the
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
-use std::marker::PhantomData;
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 use libfuzzer_sys::arbitrary::{Arbitrary, Error, Unstructured};
 
@@ -182,7 +181,7 @@ fn encode_frames(
 ) -> Result<(), EncoderStatus> {
   loop {
     let rv = ctx.receive_packet();
-    debug!("ctx.receive_packet() = {:#?}", rv);
+    log::debug!("ctx.receive_packet() = {:#?}", rv);
 
     match rv {
       Ok(_packet) => {}
