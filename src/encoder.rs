@@ -18,6 +18,7 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
+use num_traits::ToPrimitive;
 use rayon::iter::*;
 
 use crate::{
@@ -1688,13 +1689,9 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
           });
           has_hash = true;
         }
-        None => {}
       }
     }
-    None => {}
   }
-  w.bit(has_hash as u16);
-  */
 
   // Reconstruct
   let tx_dist =
@@ -1739,27 +1736,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     } else {
       ScaledDistortion::zero()
     };
-  /*
-  if has_coeff {
-    match hashmap {
-      Some(hashmap) => {
-        let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-        hashmap_guard.insert(
-          hash,
-          HashObject {
-            coeffs: qcoeffs
-              .iter()
-              .map(|p| p.clone().to_u8().unwrap_or(0))
-              .collect(),
-            hash_coeffs: has_coeff,
-            tx_dist: ScaledDistortion(tx_dist.0),
-            cul_level,
-          },
-        );
-      }
-      None => (),
-    }
-  }*/
 
   (has_coeff, tx_dist)
 }
