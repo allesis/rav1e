@@ -18,6 +18,7 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
+use num_traits::ToPrimitive;
 use rayon::iter::*;
 
 use crate::{
@@ -1594,20 +1595,27 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     );
   }
 
-  let hash =
-    //hashcoeffs::<T>(rcoeffs, eob, tx_type, tx_size.width(), tx_size.height());
-    hashcoeffs::<T>(rcoeffs, 0,0,0,0);
-
-  use log::debug;
-  debug!(
-    "HASH {:?} -> EOB {} TXTP {} W {} H {} CF {:?}",
-    hash,
+  let hash = hashcoeffs::<T>(
+    rcoeffs,
     eob,
     tx_type as usize,
     tx_size.width(),
     tx_size.height(),
-    rcoeffs
   );
+  //hashcoeffs::<T>(rcoeffs, 0,0,0,0);
+
+  use log::debug;
+  if eob != 0 {
+    debug!(
+      "HASH {:?} -> EOB {} TXTP {} W {} H {} CF {:?}",
+      hash,
+      eob,
+      tx_type as usize,
+      tx_size.width(),
+      tx_size.height(),
+      rcoeffs
+    );
+  }
   let mut marker = false;
   let mut cul_lvl = 0;
 
@@ -1680,37 +1688,18 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       // which may DESTROY performance
       // If we use a try_lock, we may miss chances to decrease encoding size
       // For now a lock will be used
-      let mut hash_buffers_lock =
-        hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
-      let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
-      if !marker && eob != 0 && has_coeff {
-        let hash_object = HashObject { cul_level: cul_lvl };
-        //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
+      if w.is_enc() {
+        let mut hash_buffers_lock =
+          hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
+        let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
+        if !marker && eob != 0 && has_coeff {
+          let hash_object = HashObject { cul_level: cul_lvl };
 
-        hash_buffer.push((hash, hash_object));
-        // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
-      }
-    }
-  }
-  /*
-  let mut has_hash = false;
-  match hashmap {
-    Some(ref hashmap) => {
-      let hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-      match hashmap_guard.get(&hash) {
-        Some(hash_object) => {
-          hash.to_le_bytes().iter().enumerate().for_each(|(i, b)| {
-            coeffs[i] = T::Coeff::cast_from(*b);
-          });
-          has_hash = true;
+          hash_buffer.push((hash, hash_object));
         }
-        None => {}
       }
     }
-    None => {}
   }
-  w.bit(has_hash as u16);
-  */
 
   // Reconstruct
   let tx_dist =
@@ -1755,27 +1744,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
     } else {
       ScaledDistortion::zero()
     };
-  /*
-  if has_coeff {
-    match hashmap {
-      Some(hashmap) => {
-        let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-        hashmap_guard.insert(
-          hash,
-          HashObject {
-            coeffs: qcoeffs
-              .iter()
-              .map(|p| p.clone().to_u8().unwrap_or(0))
-              .collect(),
-            hash_coeffs: has_coeff,
-            tx_dist: ScaledDistortion(tx_dist.0),
-            cul_level,
-          },
-        );
-      }
-      None => (),
-    }
-  }*/
 
   (has_coeff, tx_dist)
 }

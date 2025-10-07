@@ -342,13 +342,7 @@ impl<T: Pixel> ContextInner<T> {
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
       hashmap: Arc::new(RwLock::new(HashMap::new())),
-      new_hashmap: Arc::new(Mutex::new(vec![
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-      ])),
+      new_hashmap: Arc::new(Mutex::new(vec![Vec::new()])),
     }
   }
 
@@ -1516,7 +1510,7 @@ impl<T: Pixel> ContextInner<T> {
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
       });
       new_hashmap_lock.push(Vec::new());
-      new_hashmap_lock.rotate_left(1);
+      new_hashmap_lock.rotate_right(1);
     }
 
     if fi.show_frame {
