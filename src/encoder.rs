@@ -1677,21 +1677,6 @@ pub fn encode_tx_block<T: Pixel, W: Writer>(
       //println!("HASH ADDED {:?}", hash);
     }
   }
-  /*
-  let mut has_hash = false;
-  match hashmap {
-    Some(ref hashmap) => {
-      let hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-      match hashmap_guard.get(&hash) {
-        Some(hash_object) => {
-          hash.to_le_bytes().iter().enumerate().for_each(|(i, b)| {
-            coeffs[i] = T::Coeff::cast_from(*b);
-          });
-          has_hash = true;
-        }
-      }
-    }
-  }
 
   // Reconstruct
   let tx_dist =
