@@ -342,13 +342,7 @@ impl<T: Pixel> ContextInner<T> {
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
       hashmap: Arc::new(RwLock::new(HashMap::new())),
-      new_hashmap: Arc::new(Mutex::new(vec![
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-      ])),
+      new_hashmap: Arc::new(Mutex::new(vec![Vec::new()])),
     }
   }
 
