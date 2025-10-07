@@ -1,0 +1,22 @@
+@document.meta
+title: rav1e
+description:
+authors: allesis
+categories:
+created: 2025-10-07T10:15:43-0800
+updated: 2025-10-07T10:15:43-0800
+version: 1.1.1
+@end
+
+* Issue
+  Currently, the reason things arent working may be due to how things are added
+  We are currently adding in two phases
+  Adding to the Loop, and adding to the hashmap
+  We do this twice (unknowingly)
+  One when the recorder goes past, for RDO, and once for the actual write
+  This means we are adding coeffs twice incorrectly
+  We actually, only want to add if its the real write
+
+  Additionally, we are adding at an offset, which means we are adding if the
+  current frame is encoded, but not adding the current frames hashes, which is
+  wrong
