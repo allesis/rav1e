@@ -1827,7 +1827,7 @@ impl ContextWriter<'_> {
     bits += 1;
     if marker {
       // PERF: We can encode this in a more efficient manner
-      for byte in (hash as u16).to_be_bytes() {
+      for byte in (hash as u32).to_be_bytes() {
         w.bit(((byte >> 7) & 0b1).into());
         w.bit(((byte >> 6) & 0b1).into());
         w.bit(((byte >> 5) & 0b1).into());

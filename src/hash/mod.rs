@@ -9,8 +9,7 @@ use num_traits::ToPrimitive;
 use crate::{Pixel, prelude::TxType};
 
 pub fn hashcoeffs<T: Pixel>(
-  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, tx_type: usize, width: usize,
-  height: usize,
+  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, width: usize, height: usize,
 ) -> u32 {
   let mut hasher = DefaultHasher::new();
   coeffs.iter().for_each(|coeff| {
@@ -19,17 +18,16 @@ pub fn hashcoeffs<T: Pixel>(
       coeff.to_i32().unwrap().hash(&mut hasher)
     }
   });
-  /*if eob == 0 {
+  if eob == 0 {
     eob.hash(&mut hasher);
   } else {
     // WARN: Will never subtract with overflow since eob > 0
     (eob - 1).hash(&mut hasher);
-  }*/
-  //(tx_type as usize).hash(&mut hasher);
-  //width.hash(&mut hasher);
-  //height.hash(&mut hasher);
+  }
+  width.hash(&mut hasher);
+  height.hash(&mut hasher);
   let hash = hasher.finish();
-  (((hash >> 48) ^ (hash >> 32) ^ (hash >> 16) ^ hash) & 0x000000000000FFFF)
+  (((hash >> 32) ^ hash) & 0x00000000FFFFFFFF)
     .try_into()
     .expect("FAILED TO CONVERT HASH")
 }

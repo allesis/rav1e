@@ -97,6 +97,8 @@ pub trait Writer {
   fn rollback(&mut self, _: &WriterCheckpoint);
   /// Add additional bits from rate estimators without coding a real symbol
   fn add_bits_frac(&mut self, bits_frac: u32);
+
+  fn check_dec(&mut self) -> bool;
 }
 
 /// `StorageBackend` is an internal trait used to tie a specific `Writer`
@@ -112,6 +114,8 @@ pub trait StorageBackend {
   fn checkpoint(&mut self) -> WriterCheckpoint;
   /// Backend implementation of rollback to pass through Writer interface
   fn rollback(&mut self, _: &WriterCheckpoint);
+
+  fn is_dec(&mut self) -> bool;
 }
 
 #[derive(Debug, Clone)]
@@ -221,6 +225,11 @@ impl StorageBackend for WriterBase<WriterCounter> {
     self.rng = checkpoint.rng;
     self.s.bits = checkpoint.stream_size;
   }
+
+  #[inline]
+  fn is_dec(&mut self) -> bool {
+    false
+  }
 }
 
 /// The Recorder does not produce a range-coded bitstream, but it
@@ -256,6 +265,11 @@ impl StorageBackend for WriterBase<WriterRecorder> {
     self.cnt = checkpoint.cnt;
     self.s.bits = checkpoint.stream_size;
     self.s.storage.truncate(checkpoint.backend_var);
+  }
+
+  #[inline]
+  fn is_dec(&mut self) -> bool {
+    false
   }
 }
 
@@ -306,6 +320,11 @@ impl StorageBackend for WriterBase<WriterEncoder> {
     self.cnt = checkpoint.cnt;
     self.s.low = checkpoint.backend_var as ec_window;
     self.s.precarry.truncate(checkpoint.stream_size);
+  }
+
+  #[inline]
+  fn is_dec(&mut self) -> bool {
+    true
   }
 }
 
@@ -481,6 +500,10 @@ impl<S> Writer for WriterBase<S>
 where
   WriterBase<S>: StorageBackend,
 {
+  fn check_dec(&mut self) -> bool {
+    self.is_dec()
+  }
+
   /// Encode a single binary value.
   /// `val`: The value to encode (0 or 1).
   /// `f`: The probability that the val is one, scaled by 32768.

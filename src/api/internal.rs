@@ -1412,8 +1412,8 @@ impl<T: Pixel> ContextInner<T> {
         &frame_data.fi,
         &mut trial_fs,
         &self.inter_cfg,
-        None,
-        None,
+        self.hashmap.clone(),
+        self.new_hashmap.clone(),
       );
       self.rc_state.update_state(
         (data.len() * 8) as i64,
@@ -1437,8 +1437,8 @@ impl<T: Pixel> ContextInner<T> {
       &frame_data.fi,
       &mut frame_data.fs,
       &self.inter_cfg,
-      Some(self.hashmap.clone()),
-      Some(self.new_hashmap.clone()),
+      self.hashmap.clone(),
+      self.new_hashmap.clone(),
     );
     #[cfg(feature = "dump_lookahead_data")]
     {
@@ -1516,7 +1516,8 @@ impl<T: Pixel> ContextInner<T> {
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
       });
       new_hashmap_lock.push(Vec::new());
-      new_hashmap_lock.rotate_left(1);
+      new_hashmap_lock.rotate_right(1);
+      assert!(self.output_frameno >= 5 || hashmap_lock.len() == 0);
     }
 
     if fi.show_frame {
