@@ -1612,7 +1612,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let mut cul_lvl = 0;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    if eob != 0 {
+    if w.check_dec() {
       // We have a hashmap, we should attempt hash based encoding
 
       // NOTE: This could either be a lock or a try_lock
@@ -1623,6 +1623,9 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       let hashmap_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
       match hashmap_lock.get(&hash) {
         Some(hash_object) => {
+          if hash == 3235122168 {
+            println!("Used hash 3235122168");
+          }
           // We have previously sent these coefficents
           //panic!("USED A HASH");
           // Marker is 1
@@ -1678,7 +1681,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
   // EOB may have been dropped at this point so resetting it may be useless
 
-  if !marker && eob != 0 && w.check_dec() {
+  if !marker {
     // We have a hashmap, we should attempt hash based encoding
 
     // NOTE: This could either be a lock or a try_lock
@@ -1692,28 +1695,14 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     let hash_object = HashObject { cul_level: cul_lvl };
     //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
 
+    if hash == 3235122168 {
+      println!("Adding hash 3235122168");
+    }
+
     hash_buffer.push((hash, hash_object));
     // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
   }
-  /*
-  let mut has_hash = false;
-  match hashmap {
-    Some(ref hashmap) => {
-      let hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-      match hashmap_guard.get(&hash) {
-        Some(hash_object) => {
-          hash.to_le_bytes().iter().enumerate().for_each(|(i, b)| {
-            coeffs[i] = T::Coeff::cast_from(*b);
-          });
-          has_hash = true;
-        }
-        None => {}
-      }
-    }
-    None => {}
-  }
-  w.bit(has_hash as u16);
-  */
+
   // Reconstruct
   let tx_dist =
     if rdo_type.needs_tx_dist() && visible_tx_w != 0 && visible_tx_h != 0 {
