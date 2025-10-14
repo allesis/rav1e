@@ -1695,10 +1695,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     let hash_object = HashObject { cul_level: cul_lvl };
     //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
 
-    if hash == 3235122168 {
-      println!("Adding hash 3235122168");
-    }
-
     hash_buffer.push((hash, hash_object));
     // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
   }
