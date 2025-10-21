@@ -1612,25 +1612,23 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let mut cul_lvl = 0;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    if w.check_dec() {
-      // We have a hashmap, we should attempt hash based encoding
+    // We have a hashmap, we should attempt hash based encoding
 
-      // NOTE: This could either be a lock or a try_lock
-      // If a lock is used, we will wait until the hashmap is available to continue
-      // which may DESTROY performance
-      // If we use a try_lock, we may miss chances to decrease encoding size
-      // For now a lock will be used
-      let hashmap_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-      match hashmap_lock.get(&hash) {
-        Some(hash_object) => {
-          // We have previously sent these coefficents
-          //panic!("USED A HASH");
-          // Marker is 1
-          marker = true;
-          cul_lvl = hash_object.cul_level;
-        }
-        None => {}
+    // NOTE: This could either be a lock or a try_lock
+    // If a lock is used, we will wait until the hashmap is available to continue
+    // which may DESTROY performance
+    // If we use a try_lock, we may miss chances to decrease encoding size
+    // For now a lock will be used
+    let hashmap_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
+    match hashmap_lock.get(&hash) {
+      Some(hash_object) => {
+        // We have previously sent these coefficents
+        //panic!("USED A HASH");
+        // Marker is 1
+        marker = true;
+        cul_lvl = hash_object.cul_level;
       }
+      None => {}
     }
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
@@ -1667,18 +1665,9 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
   let marker = marker;
 
-  if let Some(enc_stats) = enc_stats {
-    if has_coeff && marker {
-      enc_stats.hashes_encoded += 1;
-    }
-    enc_stats.tiles_encoded += 1;
-  } else if marker {
-    //use log::info;
-    //info!("Wrote a hash but could not log it!");
-  }
-
   // EOB may have been dropped at this point so resetting it may be useless
 
+  let enc_hash;
   if !marker {
     let mut hash_buffers_lock =
       hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
@@ -1687,7 +1676,20 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
 
     hash_buffer.push((hash, hash_object));
+    enc_hash = true;
     // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
+  } else {
+    enc_hash = false;
+  }
+
+  if let Some(enc_stats) = enc_stats {
+    if has_coeff && marker {
+      enc_stats.hashes_encoded += 1;
+    }
+    enc_stats.tiles_encoded += 1;
+    if enc_hash {
+      enc_stats.hashes_stored += 1;
+    }
   }
 
   // Reconstruct
