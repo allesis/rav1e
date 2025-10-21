@@ -41,7 +41,9 @@ pub struct CDFContext {
   pub refmv_cdf: [[u16; 2]; REFMV_MODE_CONTEXTS],
   pub single_ref_cdfs: [[[u16; 2]; SINGLE_REFS - 1]; REF_CONTEXTS],
   pub skip_cdfs: [[u16; 2]; SKIP_CONTEXTS],
+  pub marker_cdfs: [[u16; 2]; MARKER_CONTEXTS],
   pub txb_skip_cdf: [[[u16; 2]; TXB_SKIP_CONTEXTS]; TxSize::TX_SIZES],
+  pub txb_marker_cdf: [[[u16; 2]; TXB_MARKER_CONTEXTS]; TxSize::TX_SIZES],
   pub txfm_partition_cdf: [[u16; 2]; TXFM_PARTITION_CONTEXTS],
   pub zeromv_cdf: [[u16; 2]; GLOBALMV_MODE_CONTEXTS],
   pub tx_size_8x8_cdf: [[u16; MAX_TX_DEPTH]; TX_SIZE_CONTEXTS],
@@ -131,6 +133,7 @@ impl CDFContext {
       tx_size_cdf: default_tx_size_cdf,
       txfm_partition_cdf: default_txfm_partition_cdf,
       skip_cdfs: default_skip_cdfs,
+      marker_cdfs: default_marker_cdfs,
       intra_inter_cdfs: default_intra_inter_cdf,
       angle_delta_cdf: default_angle_delta_cdf,
       filter_intra_cdfs: default_filter_intra_cdfs,
@@ -153,6 +156,7 @@ impl CDFContext {
 
       // lv_map
       txb_skip_cdf: av1_default_txb_skip_cdfs[qctx],
+      txb_marker_cdf: av1_default_txb_marker_cdfs[qctx],
       dc_sign_cdf: av1_default_dc_sign_cdfs[qctx],
       eob_extra_cdf: av1_default_eob_extra_cdfs[qctx],
 
@@ -260,6 +264,7 @@ impl CDFContext {
 
     // lv_map
     reset_3d!(self.txb_skip_cdf);
+    reset_3d!(self.txb_marker_cdf);
     reset_3d!(self.dc_sign_cdf);
     reset_4d!(self.eob_extra_cdf);
 
@@ -425,6 +430,10 @@ impl CDFContext {
       self.txb_skip_cdf.first().unwrap().as_ptr() as usize;
     let txb_skip_cdf_end =
       txb_skip_cdf_start + size_of_val(&self.txb_skip_cdf);
+    let txb_marker_cdf_start =
+      self.txb_marker_cdf.first().unwrap().as_ptr() as usize;
+    let txb_marker_cdf_end =
+      txb_marker_cdf_start + size_of_val(&self.txb_marker_cdf);
     let dc_sign_cdf_start =
       self.dc_sign_cdf.first().unwrap().as_ptr() as usize;
     let dc_sign_cdf_end = dc_sign_cdf_start + size_of_val(&self.dc_sign_cdf);
@@ -531,6 +540,7 @@ impl CDFContext {
       ("lrf_sgrproj_cdf", lrf_sgrproj_cdf_start, lrf_sgrproj_cdf_end),
       ("lrf_wiener_cdf", lrf_wiener_cdf_start, lrf_wiener_cdf_end),
       ("txb_skip_cdf", txb_skip_cdf_start, txb_skip_cdf_end),
+      ("txb_marker_cdf", txb_marker_cdf_start, txb_marker_cdf_end),
       ("dc_sign_cdf", dc_sign_cdf_start, dc_sign_cdf_end),
       ("eob_extra_cdf", eob_extra_cdf_start, eob_extra_cdf_end),
       ("eob_flag_cdf16", eob_flag_cdf16_start, eob_flag_cdf16_end),
