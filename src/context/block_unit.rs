@@ -1823,8 +1823,12 @@ impl ContextWriter<'_> {
     let tx_class = tx_type_to_class[tx_type as usize];
     let plane_type = usize::from(plane != 0);
 
-    w.bit(marker as u16);
-    bits += 1;
+    {
+      let cdf = &self.fc.txb_marker_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
+      bits += w.symbol_bits((marker) as u32, cdf);
+      symbol_with_update!(self, w, marker as u32, cdf);
+    }
+
     if marker {
       //use log::info;
       //info!("Used a hash");

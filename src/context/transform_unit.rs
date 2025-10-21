@@ -200,6 +200,7 @@ pub fn uv_intra_mode_to_tx_type_context(pred: PredictionMode) -> TxType {
 
 // Level Map
 pub const TXB_SKIP_CONTEXTS: usize = 13;
+pub const TXB_MARKER_CONTEXTS: usize = 13;
 
 pub const EOB_COEF_CONTEXTS: usize = 9;
 

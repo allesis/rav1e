@@ -988,6 +988,13 @@ pub static default_skip_cdfs: [[u16; 2]; SKIP_CONTEXTS] =
 pub static default_skip_mode_cdfs: [[u16; 2]; SKIP_MODE_CONTEXTS] =
   cdf_2d([[32621], [20708], [8127]]);
 
+pub static default_marker_cdfs: [[u16; 2]; MARKER_CONTEXTS] =
+  cdf_2d([[31671], [16515], [4576]]);
+
+#[allow(unused)]
+pub static default_marker_mode_cdfs: [[u16; 2]; MARKER_MODE_CONTEXTS] =
+  cdf_2d([[32621], [20708], [8127]]);
+
 #[allow(unused)]
 pub static default_compound_idx_cdfs: [[u16; 2]; COMP_INDEX_CONTEXTS] =
   cdf_2d([[18244], [12865], [7053], [13259], [9334], [4644]]);

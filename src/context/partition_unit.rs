@@ -50,7 +50,9 @@ pub const PARTITION_TYPES: usize = 4;
 pub const EXT_PARTITION_TYPES: usize = 10;
 
 pub const SKIP_CONTEXTS: usize = 3;
+pub const MARKER_CONTEXTS: usize = 3;
 pub const SKIP_MODE_CONTEXTS: usize = 3;
+pub const MARKER_MODE_CONTEXTS: usize = 3;
 
 // partition contexts are at 8x8 granularity, as it is not possible to
 // split 4x4 blocks any further than that
