@@ -27,7 +27,7 @@ pub fn hashcoeffs<T: Pixel>(
   width.hash(&mut hasher);
   height.hash(&mut hasher);
   let hash = hasher.finish();
-  (((hash >> 32) ^ hash) & 0x00000000FFFFFFFF)
+  (((hash >> 48) ^ (hash >> 32) ^ (hash >> 16) ^ hash) & 0x000000000000FFFF)
     .try_into()
     .expect("FAILED TO CONVERT HASH")
 }

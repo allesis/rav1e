@@ -1595,7 +1595,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     );
   }
 
-  let hash = hashcoeffs::<T>(rcoeffs, eob, tx_size.width(), tx_size.height());
+  let hash = hashcoeffs::<T>(rcoeffs, eob, 0, 0); //, tx_size.width(), tx_size.height());
   //hashcoeffs::<T>(rcoeffs, 0,0,0,0);
 
   use log::debug;
@@ -1623,9 +1623,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       let hashmap_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
       match hashmap_lock.get(&hash) {
         Some(hash_object) => {
-          if hash == 3235122168 {
-            println!("Used hash 3235122168");
-          }
           // We have previously sent these coefficents
           //panic!("USED A HASH");
           // Marker is 1
@@ -1635,7 +1632,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
         None => {}
       }
     }
-    let marker = marker;
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
     let frame_clipped_txw: usize =
@@ -1660,7 +1656,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       frame_clipped_txw,
       frame_clipped_txh,
       cul_lvl,
-      hash,
+      hash.into(),
       marker,
     );
     cul_lvl = cul_level;
@@ -1668,6 +1664,8 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   } else {
     true
   };
+
+  let marker = marker;
 
   if let Some(enc_stats) = enc_stats {
     if has_coeff && marker {
@@ -1682,13 +1680,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // EOB may have been dropped at this point so resetting it may be useless
 
   if !marker {
-    // We have a hashmap, we should attempt hash based encoding
-
-    // NOTE: This could either be a lock or a try_lock
-    // If a lock is used, we will wait until the hashmap is available to continue
-    // which may DESTROY performance
-    // If we use a try_lock, we may miss chances to decrease encoding size
-    // For now a lock will be used
     let mut hash_buffers_lock =
       hash_buffers.lock().expect("FAILED TO LOCK HASHMAP");
     let hash_buffer = hash_buffers_lock.get_mut(0).expect("NO HASHMAPS");
@@ -1742,27 +1733,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     } else {
       ScaledDistortion::zero()
     };
-  /*
-  if has_coeff {
-    match hashmap {
-      Some(hashmap) => {
-        let mut hashmap_guard = hashmap.lock().expect("Could not lock Mutex!");
-        hashmap_guard.insert(
-          hash,
-          HashObject {
-            coeffs: qcoeffs
-              .iter()
-              .map(|p| p.clone().to_u8().unwrap_or(0))
-              .collect(),
-            hash_coeffs: has_coeff,
-            tx_dist: ScaledDistortion(tx_dist.0),
-            cul_level,
-          },
-        );
-      }
-      None => (),
-    }
-  }*/
 
   (has_coeff, tx_dist)
 }
