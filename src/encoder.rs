@@ -1434,6 +1434,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
   hash_buffers: Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>,
   enc_stats: &mut Option<&'a mut EncoderStats>,
+  is_first_pass: bool,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
   let tile_rect = ts.tile_rect().decimated(xdec, ydec);
@@ -1677,7 +1678,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
     hash_buffer.push((hash, hash_object));
     enc_hash = true;
-    // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
+    println!("HASH {} COEFFS {:?}", hash, rcoeffs);
   } else {
     enc_hash = false;
   }
@@ -2402,6 +2403,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
         hashmap.clone(),
         hash_buffers.clone(),
         &mut enc_stats,
+        false,
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2497,6 +2499,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
           hashmap.clone(),
           hash_buffers.clone(),
           &mut enc_stats,
+          true,
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
@@ -2576,6 +2579,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
         hashmap.clone(),
         hash_buffers.clone(),
         &mut enc_stats,
+        false,
       );
       partition_has_coeff |= has_coeff;
       tx_dist += dist;
@@ -2663,6 +2667,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
           hashmap.clone(),
           hash_buffers.clone(),
           &mut enc_stats,
+          true,
         );
         partition_has_coeff |= has_coeff;
         tx_dist += dist;
