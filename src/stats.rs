@@ -35,8 +35,10 @@ pub struct EncoderStats {
   pub chroma_pred_mode_counts: [usize; PREDICTION_MODES],
   /// Stores the total number of tiles encoded in this frame
   pub tiles_encoded: usize,
-  /// Stores the total number of hashes encoded in this frame
+  /// Stores the total number of hashes used to encode qoefficents in this frame
   pub hashes_encoded: usize,
+  /// Number of hashes encoded total
+  pub hashes_stored: usize,
 }
 
 impl Default for EncoderStats {
@@ -51,6 +53,7 @@ impl Default for EncoderStats {
       chroma_pred_mode_counts,
       tiles_encoded: 0,
       hashes_encoded: 0,
+      hashes_stored: 0,
     }
   }
 }

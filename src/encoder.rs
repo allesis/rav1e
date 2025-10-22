@@ -1683,12 +1683,12 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   }
 
   if let Some(enc_stats) = enc_stats {
-    if has_coeff && marker {
-      enc_stats.hashes_encoded += 1;
+    if has_coeff && marker == 1 {
+      enc_stats.hashes_stored += 1;
     }
     enc_stats.tiles_encoded += 1;
     if enc_hash {
-      enc_stats.hashes_stored += 1;
+      enc_stats.hashes_encoded += 1;
     }
   }
 
