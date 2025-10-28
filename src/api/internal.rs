@@ -263,7 +263,7 @@ pub(crate) struct ContextInner<T: Pixel> {
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  new_hashmap: Arc<Mutex<Vec<Vec<(u32, HashObject)>>>>,
+  new_hashmap: Arc<Mutex<Vec<(u32, HashObject)>>>,
 }
 
 pub struct HashObject {
@@ -342,13 +342,7 @@ impl<T: Pixel> ContextInner<T> {
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
       hashmap: Arc::new(RwLock::new(HashMap::new())),
-      new_hashmap: Arc::new(Mutex::new(vec![
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
-      ])),
+      new_hashmap: Arc::new(Mutex::new(Vec::new())),
     }
   }
 
@@ -1508,16 +1502,12 @@ impl<T: Pixel> ContextInner<T> {
     {
       let mut hashmap_lock =
         self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let mut new_hashmap_lock =
+      let new_hashmap_lock =
         self.new_hashmap.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      let new_hashmap_to_add = new_hashmap_lock.pop();
-      new_hashmap_to_add.expect("RAN OUT OF HASHMAPS").iter().for_each(|v| {
+      new_hashmap_lock.iter().for_each(|v| {
         let (hash, value) = v;
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
       });
-      new_hashmap_lock.push(Vec::new());
-      new_hashmap_lock.rotate_right(1);
-      assert!(self.output_frameno >= 5 || hashmap_lock.len() == 0);
     }
 
     if fi.show_frame {
