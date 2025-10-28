@@ -1768,7 +1768,7 @@ impl ContextWriter<'_> {
     eob: u16, pred_mode: PredictionMode, tx_size: TxSize, tx_type: TxType,
     plane_bsize: BlockSize, xdec: usize, ydec: usize,
     use_reduced_tx_set: bool, frame_clipped_txw: usize,
-    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, marker: bool,
+    frame_clipped_txh: usize, cul_lvl: u8, hash: u32, marker: u16,
   ) -> (bool, u8) {
     debug_assert!(frame_clipped_txw != 0);
     debug_assert!(frame_clipped_txh != 0);
@@ -1826,10 +1826,10 @@ impl ContextWriter<'_> {
     {
       let cdf = &self.fc.txb_marker_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
       bits += w.symbol_bits((marker) as u32, cdf);
-      symbol_with_update!(self, w, marker as u32, cdf);
+      symbol_with_update!(self, w, (marker == 0) as u32, cdf);
     }
 
-    if marker {
+    if marker == 0 {
       //use log::info;
       //info!("Used a hash");
       // PERF: We can encode this in a more efficient manner

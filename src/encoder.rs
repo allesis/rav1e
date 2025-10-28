@@ -1608,7 +1608,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     tx_size.height(),
     rcoeffs
   );
-  let mut marker = false;
+  let mut marker: u16 = 1;
   let mut cul_lvl = 0;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
@@ -1625,7 +1625,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
         // We have previously sent these coefficents
         //panic!("USED A HASH");
         // Marker is 1
-        marker = true;
+        marker = 0;
         cul_lvl = hash_object.cul_level;
       }
       None => {}
@@ -1666,18 +1666,20 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let marker = marker;
 
   if let Some(enc_stats) = enc_stats {
-    if has_coeff && marker {
+    if has_coeff && marker == 0 {
       enc_stats.hashes_encoded += 1;
     }
     enc_stats.tiles_encoded += 1;
-  } else if marker {
+  } else if marker == 0 {
     //use log::info;
     //info!("Wrote a hash but could not log it!");
   }
 
+  print!("{}", marker);
+
   // EOB may have been dropped at this point so resetting it may be useless
 
-  if !marker && w.check_dec() {
+  if marker == 1 {
     let mut hash_buffer_lock =
       hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
     let hash_object = HashObject { cul_level: cul_lvl };
