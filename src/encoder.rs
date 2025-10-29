@@ -1430,9 +1430,8 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   pred_intra_param: IntraParam,
   rdo_type: RDOType,
   need_recon_pixel: bool,
-  // Optional Rc<HashMap> to build dict around
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
   enc_stats: &mut Option<&'a mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
@@ -1675,18 +1674,20 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     //info!("Wrote a hash but could not log it!");
   }
 
-  print!("{}", marker);
+  //print!("{}", marker);
 
   // EOB may have been dropped at this point so resetting it may be useless
 
   if marker == 1 {
-    let mut hash_buffer_lock =
-      hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
-    let hash_object = HashObject { cul_level: cul_lvl };
-    //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
+    if let Some(hash_buffer) = hash_buffer {
+      let mut hash_buffer_lock =
+        hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
+      let hash_object = HashObject { cul_level: cul_lvl };
+      //let mut hashmap_to_add = hashmap_to_add.as_mut_ptr();
 
-    hash_buffer_lock.push((hash, hash_object));
-    // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
+      hash_buffer_lock.push((hash, hash_object));
+      // println!("HASH {} COEFFS {:?}", hash, rcoeffs);
+    }
   }
 
   // Reconstruct
@@ -2020,7 +2021,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
   rdo_type: RDOType, need_recon_pixel: bool,
   enc_stats: Option<&mut EncoderStats>,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) -> (bool, ScaledDistortion) {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -2337,7 +2338,7 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
   tx_type: TxType, skip: bool, cfl: CFLParams, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
   mut enc_stats: Option<&mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   let bw = bsize.width_mi() / tx_size.width_mi();
@@ -2511,7 +2512,7 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
   tx_size: TxSize, tx_type: TxType, skip: bool, luma_only: bool,
   rdo_type: RDOType, need_recon_pixel: bool,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
   mut enc_stats: Option<&mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   if skip {
@@ -2678,7 +2679,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   mode_decision: &PartitionParameters, rdo_type: RDOType,
   enc_stats: Option<&mut EncoderStats>,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) {
   let (mode_luma, mode_chroma) =
     (mode_decision.pred_mode_luma, mode_decision.pred_mode_chroma);
@@ -2758,7 +2759,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset, ref_rd_cost: f64,
   inter_cfg: &InterConfig, enc_stats: &mut EncoderStats,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) -> PartitionGroupParameters {
   let rdo_type = RDOType::PixelDistRealRate;
   let mut rd_cost = f64::MAX;
@@ -2822,7 +2823,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       tile_bo,
       inter_cfg,
       hashmap.clone(),
-      hash_buffer.clone(),
+      None,
     );
 
     if !mode_decision.pred_mode_luma.is_intra() {
@@ -2983,6 +2984,14 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
 
     // If the best partition is not PARTITION_SPLIT, recode it
     if best_partition != PartitionType::PARTITION_SPLIT {
+      // NOTE: We have determined our last encoding was not the optimal way to do it
+      // So we re-encode
+      // This means we won't write the previous hashes to the bitstream
+      // So throw them away before adding them to the hashmap
+      if let Some(ref hash_buffer) = hash_buffer {
+        let mut hash_buffer_lock = hash_buffer.lock().unwrap();
+        *hash_buffer_lock = Vec::new();
+      }
       assert!(!rdo_output.part_modes.is_empty());
       cw.rollback(&cw_checkpoint);
       w_pre_cdef.rollback(&w_pre_checkpoint);
@@ -3058,7 +3067,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
   block_output: &Option<PartitionGroupParameters>, inter_cfg: &InterConfig,
   enc_stats: &mut EncoderStats,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) {
   if tile_bo.0.x >= ts.mi_width || tile_bo.0.y >= ts.mi_height {
     return;
@@ -3110,7 +3119,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
       rdo_type,
       inter_cfg,
       hashmap.clone(),
-      hash_buffer.clone(),
+      None,
     );
     rdo_output.part_type
   } else {
@@ -3144,7 +3153,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             tile_bo,
             inter_cfg,
             hashmap.clone(),
-            hash_buffer.clone(),
+            None,
           );
           &rdo_decision
         };
@@ -3176,7 +3185,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         mvs,
         skip,
         hashmap.clone(),
-        hash_buffer.clone(),
+        None,
       );
 
       let mut mv_stack = ArrayVec::<CandidateMV, 9>::new();
@@ -3402,7 +3411,7 @@ fn get_initial_cdfcontext<T: Pixel>(fi: &FrameInvariants<T>) -> CDFContext {
 fn encode_tile_group<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) -> Vec<u8> {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -3644,7 +3653,7 @@ fn encode_tile<'a, T: Pixel>(
   fi: &FrameInvariants<T>, ts: &'a mut TileStateMut<'_, T>,
   fc: &'a mut CDFContext, blocks: &'a mut TileBlocksMut<'a>,
   inter_cfg: &InterConfig, hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) -> (Vec<u8>, EncoderStats) {
   let mut enc_stats = EncoderStats::default();
   let mut w = WriterEncoder::new();
@@ -3948,7 +3957,7 @@ fn get_initial_segmentation<T: Pixel>(
 pub fn encode_frame<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
   hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) -> Vec<u8> {
   debug_assert!(!fi.is_show_existing_frame());
   let obu_extension = 0;

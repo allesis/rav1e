@@ -1407,7 +1407,10 @@ impl<T: Pixel> ContextInner<T> {
         &mut trial_fs,
         &self.inter_cfg,
         self.hashmap.clone(),
-        self.new_hashmap.clone(),
+        // WARN: Passing None here will negatively impact the performance of
+        // our hashing method. While we will still use it, its space savings
+        // will not be considered as part of the trial encoding
+        None,
       );
       self.rc_state.update_state(
         (data.len() * 8) as i64,
@@ -1432,7 +1435,7 @@ impl<T: Pixel> ContextInner<T> {
       &mut frame_data.fs,
       &self.inter_cfg,
       self.hashmap.clone(),
-      self.new_hashmap.clone(),
+      Some(self.new_hashmap.clone()),
     );
     #[cfg(feature = "dump_lookahead_data")]
     {
