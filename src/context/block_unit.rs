@@ -1829,21 +1829,21 @@ impl ContextWriter<'_> {
       symbol_with_update!(self, w, (marker == 0) as u32, cdf);
     }
 
-    for byte in (hash as u32).to_be_bytes() {
-      w.bit(((byte >> 7) & 0b1).into());
-      w.bit(((byte >> 6) & 0b1).into());
-      w.bit(((byte >> 5) & 0b1).into());
-      w.bit(((byte >> 4) & 0b1).into());
-      w.bit(((byte >> 3) & 0b1).into());
-      w.bit(((byte >> 2) & 0b1).into());
-      w.bit(((byte >> 1) & 0b1).into());
-      w.bit(((byte >> 0) & 0b1).into());
-      bits += 8;
-    }
-
     if marker == 0 {
       //use log::info;
       //info!("Used a hash");
+      for byte in (hash as u32).to_be_bytes() {
+        w.bit(((byte >> 7) & 0b1).into());
+        w.bit(((byte >> 6) & 0b1).into());
+        w.bit(((byte >> 5) & 0b1).into());
+        w.bit(((byte >> 4) & 0b1).into());
+        w.bit(((byte >> 3) & 0b1).into());
+        w.bit(((byte >> 2) & 0b1).into());
+        w.bit(((byte >> 1) & 0b1).into());
+        w.bit(((byte >> 0) & 0b1).into());
+        bits += 8;
+      }
+
       // PERF: We can encode this in a more efficient manner
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       //use log::info;
