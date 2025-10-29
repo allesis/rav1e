@@ -5,10 +5,10 @@ setup REMOTE_NAME='cluster' REMOTE_DIRECTORY='/cluster/research-groups/wehrwein/
   if [ "$?" -ne 0 ]; then \
     mkdir -p {{LOCAL_DIRECTORY}}; \
   fi
-  sshfs -o auto_unmount {{REMOTE_NAME}}:{{REMOTE_DIRECTORY}} {{LOCAL_DIRECTORY}} > 2&> /dev/null
+  sshfs -o auto_unmount {{REMOTE_NAME}}:{{REMOTE_DIRECTORY}} {{LOCAL_DIRECTORY}} 2&>1 > /dev/null
   if [ "$?" -ne 0 ]; then \
     fusermount -u {{LOCAL_DIRECTORY}}; \
-    sshfs -o auto_unmount {{REMOTE_NAME}}:{{REMOTE_DIRECTORY}} {{LOCAL_DIRECTORY}} > 2&> /dev/null; \
+    sshfs -o auto_unmount {{REMOTE_NAME}}:{{REMOTE_DIRECTORY}} {{LOCAL_DIRECTORY}} 2&>1 > /dev/null; \
   else \
     exit 0; \
   fi
