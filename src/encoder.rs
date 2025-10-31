@@ -35,10 +35,10 @@ use crate::{
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
+    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
   },
   quantize::*,
-  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
+  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1595,7 +1595,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   }
 
   let hash = hashcoeffs::<T>(rcoeffs, eob, 0, 0); //, tx_size.width(), tx_size.height());
-  //hashcoeffs::<T>(rcoeffs, 0,0,0,0);
+                                                  //hashcoeffs::<T>(rcoeffs, 0,0,0,0);
 
   use log::debug;
   debug!(
@@ -1673,8 +1673,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     //use log::info;
     //info!("Wrote a hash but could not log it!");
   }
-
-  //print!("{}", marker);
 
   // EOB may have been dropped at this point so resetting it may be useless
 
