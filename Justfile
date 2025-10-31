@@ -33,7 +33,7 @@ install INSTALL_DIR='$HOME/.local/bin':
 install-release INSTALL_DIR='$HOME/.local/bin':
 	cp target/release/rav1e {{INSTALL_DIR}}/rav1e
 run VIDEO DIRECTORY='$HOME/video' *ARGS: release
-  ./target/release/rav1e -y -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
+  ./target/release/rav1e -y --low-latency -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
 check VIDEO DIRECTORY='$HOME/video': setup
   ffprobe -v error -select_streams v:0 -show_entries stream=ivf -of default=nokey=1:noprint_wrappers=1 {{DIRECTORY}}/{{VIDEO}}.ivf
 size VIDEO DIRECTORY='$HOME/video' FORMAT='k':

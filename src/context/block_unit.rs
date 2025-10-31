@@ -1833,6 +1833,7 @@ impl ContextWriter<'_> {
       //use log::info;
       //info!("Used a hash");
       for byte in (hash as u32).to_be_bytes() {
+        // PERF: We can encode this in a more efficient manner
         w.bit(((byte >> 7) & 0b1).into());
         w.bit(((byte >> 6) & 0b1).into());
         w.bit(((byte >> 5) & 0b1).into());
@@ -1844,7 +1845,6 @@ impl ContextWriter<'_> {
         bits += 8;
       }
 
-      // PERF: We can encode this in a more efficient manner
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       //use log::info;
       //info!("Hash took {:?} bits to write", bits);

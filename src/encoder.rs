@@ -2297,7 +2297,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       rdo_type,
       need_recon_pixel,
       hashmap.clone(),
-      hash_buffer.clone(),
+      None,
       enc_stats,
     )
   } else {
@@ -2709,7 +2709,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
       mvs,
       skip,
       hashmap.clone(),
-      hash_buffer.clone(),
+      None,
     )
   } else {
     (mode_decision.tx_size, mode_decision.tx_type)
@@ -2946,7 +2946,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           inter_cfg,
           enc_stats,
           hashmap.clone(),
-          hash_buffer.clone(),
+          None,
         );
         let cost = child_rdo_output.rd_cost;
         assert!(cost >= 0.0);
@@ -2986,6 +2986,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       // So we re-encode
       // This means we won't write the previous hashes to the bitstream
       // So throw them away before adding them to the hashmap
+
       if let Some(ref hash_buffer) = hash_buffer {
         let mut hash_buffer_lock = hash_buffer.lock().unwrap();
         *hash_buffer_lock = Vec::new();
@@ -3560,7 +3561,8 @@ fn check_lf_queue<T: Pixel>(
   cw: &mut ContextWriter, w: &mut WriterBase<WriterEncoder>,
   sbs_q: &mut VecDeque<SBSQueueEntry>, last_lru_ready: &mut [i32; 3],
   last_lru_rdoed: &mut [i32; 3], last_lru_coded: &mut [i32; 3],
-  deblock_p: bool,
+  deblock_p: bool, hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
+  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
 ) {
   let mut check_queue = true;
   let planes = if fi.sequence.chroma_sampling == ChromaSampling::Cs400 {
@@ -3764,6 +3766,8 @@ fn encode_tile<'a, T: Pixel>(
             &mut last_lru_rdoed,
             &mut last_lru_coded,
             true,
+            hashmap.clone(),
+            None,
           );
         }
       }
@@ -3820,6 +3824,8 @@ fn encode_tile<'a, T: Pixel>(
         &mut last_lru_rdoed,
         &mut last_lru_coded,
         false,
+        hashmap.clone(),
+        None,
       );
 
       // copy original reference back in
@@ -3844,7 +3850,20 @@ fn encode_tile<'a, T: Pixel>(
         &mut last_lru_rdoed,
         &mut last_lru_coded,
         false,
+        hashmap.clone(),
+        hash_buffer.clone(),
       );
+    }
+  }
+  {
+    if let Some(ref hash_buffer) = hash_buffer {
+      let mut hashmap_lock = hashmap.write().expect("FAILED TO LOCK HASHMAP");
+      let hash_buffer_lock =
+        hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
+      hash_buffer_lock.iter().for_each(|v| {
+        let (hash, value) = v;
+        hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
+      });
     }
   }
 

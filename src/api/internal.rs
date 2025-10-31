@@ -22,7 +22,7 @@ use av_scenechange::SceneChangeDetector;
 use crate::{
   activity::ActivityMask,
   api::{
-    EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35, lookahead::*,
+    lookahead::*, EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35,
   },
   color::ChromaSampling::Cs400,
   dist::get_satd,
@@ -30,8 +30,8 @@ use crate::{
   frame::*,
   partition::*,
   rate::{
-    FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
-    RCState,
+    RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,
+    FRAME_SUBTYPE_SEF,
   },
   stats::EncoderStats,
   tiling::Area,
@@ -1502,7 +1502,7 @@ impl<T: Pixel> ContextInner<T> {
     let fi = &frame_data.fi;
 
     self.output_frameno += 1;
-    {
+    /*   {
       let mut hashmap_lock =
         self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
       let new_hashmap_lock =
@@ -1511,7 +1511,7 @@ impl<T: Pixel> ContextInner<T> {
         let (hash, value) = v;
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
       });
-    }
+    }*/
 
     if fi.show_frame {
       let input_frameno = fi.input_frameno;
@@ -1569,6 +1569,17 @@ impl<T: Pixel> ContextInner<T> {
       pkt.opaque = self.opaque_q.remove(&pkt.input_frameno);
     }
 
+    {
+      let mut hashmap_lock =
+        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
+      let hash_buffer_lock =
+        self.new_hashmap.lock().expect("FAILED TO LOCK NEW HASHMAP");
+      hash_buffer_lock.iter().for_each(|v| {
+        let (hash, value) = v;
+        hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
+      });
+    }
+
     ret
   }
 
@@ -1582,7 +1593,6 @@ impl<T: Pixel> ContextInner<T> {
     if write_temporal_delimiter(&mut self.packet_data).is_err() {
       return Err(EncoderStatus::Failure);
     }
-
     self.frames_processed += 1;
     Ok(Packet {
       data,
