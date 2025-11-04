@@ -9,8 +9,6 @@
 
 use std::mem::MaybeUninit;
 
-use bitstream_io::write;
-
 use super::*;
 use crate::{api::HashType, predict::PredictionMode};
 

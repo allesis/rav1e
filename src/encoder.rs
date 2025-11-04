@@ -1594,8 +1594,15 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     );
   }
 
-  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob, 0, 0); //, tx_size.width(), tx_size.height());
-                                                            //hashcoeffs::<T>(rcoeffs, 0,0,0,0);
+  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob, tx_size as usize);
+  /*println!(
+    "HASH {} => EOB {} WIDTH {} HEIGHT {} CF {:?}",
+    hash,
+    eob,
+    tx_size.width(),
+    tx_size.height(),
+    rcoeffs
+  );*/
 
   use log::debug;
   debug!(
@@ -3562,8 +3569,7 @@ fn check_lf_queue<T: Pixel>(
   cw: &mut ContextWriter, w: &mut WriterBase<WriterEncoder>,
   sbs_q: &mut VecDeque<SBSQueueEntry>, last_lru_ready: &mut [i32; 3],
   last_lru_rdoed: &mut [i32; 3], last_lru_coded: &mut [i32; 3],
-  deblock_p: bool, hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(u32, HashObject)>>>>,
+  deblock_p: bool,
 ) {
   let mut check_queue = true;
   let planes = if fi.sequence.chroma_sampling == ChromaSampling::Cs400 {
@@ -3768,8 +3774,6 @@ fn encode_tile<'a, T: Pixel>(
             &mut last_lru_rdoed,
             &mut last_lru_coded,
             true,
-            hashmap.clone(),
-            None,
           );
         }
       }
@@ -3826,8 +3830,6 @@ fn encode_tile<'a, T: Pixel>(
         &mut last_lru_rdoed,
         &mut last_lru_coded,
         false,
-        hashmap.clone(),
-        None,
       );
 
       // copy original reference back in
@@ -3852,8 +3854,6 @@ fn encode_tile<'a, T: Pixel>(
         &mut last_lru_rdoed,
         &mut last_lru_coded,
         false,
-        hashmap.clone(),
-        hash_buffer.clone(),
       );
     }
   }

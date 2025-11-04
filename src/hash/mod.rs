@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub fn hashcoeffs<T: Pixel>(
-  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, width: usize, height: usize,
+  coeffs: &mut [<T as Pixel>::Coeff], eob: u16, tx_size: usize,
 ) -> HashType {
   let mut hasher = DefaultHasher::new();
   coeffs.iter().for_each(|coeff| {
@@ -27,8 +27,7 @@ pub fn hashcoeffs<T: Pixel>(
     // WARN: Will never subtract with overflow since eob > 0
     (eob - 1).hash(&mut hasher);
   }
-  width.hash(&mut hasher);
-  height.hash(&mut hasher);
+  tx_size.hash(&mut hasher);
   let hash = hasher.finish();
-  (hash & HASHMASK as u64).try_into().expect("FAILED TO CONVERT HASH")
+  (hash & (HASHMASK as u64)).try_into().expect("FAILED TO CONVERT HASH")
 }
