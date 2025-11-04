@@ -224,6 +224,8 @@ impl<T: Pixel> FrameData<T> {
 
 type FrameQueue<T> = BTreeMap<u64, Option<Arc<Frame<T>>>>;
 type FrameDataQueue<T> = BTreeMap<u64, Option<FrameData<T>>>;
+pub type HashType = u32;
+pub const HASHMASK: HashType = 0xFFFFFFFF;
 
 // the fields pub(super) are accessed only by the tests
 pub(crate) struct ContextInner<T: Pixel> {
@@ -262,8 +264,8 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
-  hashmap: Arc<RwLock<HashMap<u32, HashObject>>>,
-  new_hashmap: Arc<Mutex<Vec<(u32, HashObject)>>>,
+  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
+  new_hashmap: Arc<Mutex<Vec<(HashType, HashObject)>>>,
 }
 
 pub struct HashObject {
