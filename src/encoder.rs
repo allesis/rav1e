@@ -2301,7 +2301,7 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
       rdo_type,
       need_recon_pixel,
       hashmap.clone(),
-      None,
+      hash_buffer.clone(),
       enc_stats,
     )
   } else {
@@ -2713,7 +2713,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
       mvs,
       skip,
       hashmap.clone(),
-      None,
+      hash_buffer.clone(),
     )
   } else {
     (mode_decision.tx_size, mode_decision.tx_type)
