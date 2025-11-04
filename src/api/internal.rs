@@ -11,14 +11,13 @@
 use std::{
   cmp,
   collections::{BTreeMap, BTreeSet, HashMap},
-  env, fs,
+  env, fs, mem,
   path::PathBuf,
   sync::{Arc, Mutex, RwLock},
 };
 
 use arrayvec::ArrayVec;
 use av_scenechange::SceneChangeDetector;
-use num_traits::PrimInt;
 
 use crate::{
   activity::ActivityMask,
@@ -36,6 +35,7 @@ use crate::{
   },
   stats::EncoderStats,
   tiling::Area,
+  transform::TxSize,
   util::Pixel,
 };
 
@@ -226,8 +226,9 @@ impl<T: Pixel> FrameData<T> {
 type FrameQueue<T> = BTreeMap<u64, Option<Arc<Frame<T>>>>;
 type FrameDataQueue<T> = BTreeMap<u64, Option<FrameData<T>>>;
 pub type HashType = u32;
+pub type HashMapType = Arc<RwLock<HashMap<HashType, HashObject>>>;
+pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject)>>>;
 pub const HASHMASK: HashType = 0xFFFFFFFF;
-pub const HASHSIZE: u32 = u32::BITS - HASHMASK.leading_zeros();
 
 // the fields pub(super) are accessed only by the tests
 pub(crate) struct ContextInner<T: Pixel> {
@@ -266,8 +267,8 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Arc<Mutex<Vec<(HashType, HashObject)>>>,
+  hashmap: HashMapType,
+  hash_buffer: HashBufferType,
 }
 
 pub struct HashObject {

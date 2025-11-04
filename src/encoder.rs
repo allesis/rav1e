@@ -8,11 +8,11 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use std::{
-  collections::{HashMap, VecDeque},
+  collections::VecDeque,
   fmt,
   io::{self, Write},
   mem::{self, MaybeUninit},
-  sync::{Arc, Mutex, RwLock},
+  sync::Arc,
 };
 
 use arg_enum_proc_macro::ArgEnum;
@@ -1430,8 +1430,8 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   pred_intra_param: IntraParam,
   rdo_type: RDOType,
   need_recon_pixel: bool,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
   enc_stats: &mut Option<&'a mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[p].cfg;
@@ -2021,9 +2021,8 @@ pub fn encode_block_post_cdef<T: Pixel, W: Writer>(
   tile_bo: TileBlockOffset, skip: bool, cfl: CFLParams, tx_size: TxSize,
   tx_type: TxType, mode_context: usize, mv_stack: &[CandidateMV],
   rdo_type: RDOType, need_recon_pixel: bool,
-  enc_stats: Option<&mut EncoderStats>,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  enc_stats: Option<&mut EncoderStats>, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
 ) -> (bool, ScaledDistortion) {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -2338,9 +2337,8 @@ pub fn write_tx_blocks<T: Pixel, W: Writer>(
   chroma_mode: PredictionMode, angle_delta: AngleDelta,
   tile_bo: TileBlockOffset, bsize: BlockSize, tx_size: TxSize,
   tx_type: TxType, skip: bool, cfl: CFLParams, luma_only: bool,
-  rdo_type: RDOType, need_recon_pixel: bool,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  rdo_type: RDOType, need_recon_pixel: bool, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
   mut enc_stats: Option<&mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   let bw = bsize.width_mi() / tx_size.width_mi();
@@ -2512,9 +2510,8 @@ pub fn write_tx_tree<T: Pixel, W: Writer>(
   cw: &mut ContextWriter, w: &mut W, luma_mode: PredictionMode,
   angle_delta_y: i8, tile_bo: TileBlockOffset, bsize: BlockSize,
   tx_size: TxSize, tx_type: TxType, skip: bool, luma_only: bool,
-  rdo_type: RDOType, need_recon_pixel: bool,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  rdo_type: RDOType, need_recon_pixel: bool, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
   mut enc_stats: Option<&mut EncoderStats>,
 ) -> (bool, ScaledDistortion) {
   if skip {
@@ -2679,9 +2676,8 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   cw: &mut ContextWriter, w_pre_cdef: &mut W, w_post_cdef: &mut W,
   bsize: BlockSize, tile_bo: TileBlockOffset,
   mode_decision: &PartitionParameters, rdo_type: RDOType,
-  enc_stats: Option<&mut EncoderStats>,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  enc_stats: Option<&mut EncoderStats>, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
 ) {
   let (mode_luma, mode_chroma) =
     (mode_decision.pred_mode_luma, mode_decision.pred_mode_chroma);
@@ -2759,9 +2755,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, w_pre_cdef: &mut W, w_post_cdef: &mut W,
   bsize: BlockSize, tile_bo: TileBlockOffset, ref_rd_cost: f64,
-  inter_cfg: &InterConfig, enc_stats: &mut EncoderStats,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  inter_cfg: &InterConfig, enc_stats: &mut EncoderStats, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
 ) -> PartitionGroupParameters {
   let rdo_type = RDOType::PixelDistRealRate;
   let mut rd_cost = f64::MAX;
@@ -3069,9 +3064,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
   cw: &mut ContextWriter, w_pre_cdef: &mut W, w_post_cdef: &mut W,
   bsize: BlockSize, tile_bo: TileBlockOffset,
   block_output: &Option<PartitionGroupParameters>, inter_cfg: &InterConfig,
-  enc_stats: &mut EncoderStats,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  enc_stats: &mut EncoderStats, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
 ) {
   if tile_bo.0.x >= ts.mi_width || tile_bo.0.y >= ts.mi_height {
     return;
@@ -3417,8 +3411,7 @@ fn get_initial_cdfcontext<T: Pixel>(fi: &FrameInvariants<T>) -> CDFContext {
 #[profiling::function]
 fn encode_tile_group<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  hashmap: HashMapType, hash_buffer: Option<HashBufferType>,
 ) -> Vec<u8> {
   let planes =
     if fi.sequence.chroma_sampling == ChromaSampling::Cs400 { 1 } else { 3 };
@@ -3659,9 +3652,8 @@ fn check_lf_queue<T: Pixel>(
 fn encode_tile<'a, T: Pixel>(
   fi: &FrameInvariants<T>, ts: &'a mut TileStateMut<'_, T>,
   fc: &'a mut CDFContext, blocks: &'a mut TileBlocksMut<'a>,
-  inter_cfg: &InterConfig,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  inter_cfg: &InterConfig, hashmap: HashMapType,
+  hash_buffer: Option<HashBufferType>,
 ) -> (Vec<u8>, EncoderStats) {
   let mut enc_stats = EncoderStats::default();
   let mut w = WriterEncoder::new();
@@ -3975,8 +3967,7 @@ fn get_initial_segmentation<T: Pixel>(
 #[profiling::function]
 pub fn encode_frame<T: Pixel>(
   fi: &FrameInvariants<T>, fs: &mut FrameState<T>, inter_cfg: &InterConfig,
-  hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  hash_buffer: Option<Arc<Mutex<Vec<(HashType, HashObject)>>>>,
+  hashmap: HashMapType, hash_buffer: Option<HashBufferType>,
 ) -> Vec<u8> {
   debug_assert!(!fi.is_show_existing_frame());
   let obu_extension = 0;
