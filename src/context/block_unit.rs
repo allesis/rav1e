@@ -10,7 +10,10 @@
 use std::mem::MaybeUninit;
 
 use super::*;
-use crate::{api::HashType, predict::PredictionMode};
+use crate::{
+  api::{HashType, HASHSIZE},
+  predict::PredictionMode,
+};
 
 pub const MAX_PLANES: usize = 3;
 
@@ -1844,7 +1847,12 @@ impl ContextWriter<'_> {
     if marker == 0 {
       //use log::info;
       //info!("Used a hash");
-      for byte in hash.to_be_bytes() {
+
+      let bytes = &hash.to_be_bytes()[size_of::<HashType>()
+        - ((HASHSIZE / 8) as usize)
+        ..size_of::<HashType>()];
+
+      for byte in bytes {
         w.bit(((byte >> 7) & 0b1).into());
         w.bit(((byte >> 6) & 0b1).into());
         w.bit(((byte >> 5) & 0b1).into());
