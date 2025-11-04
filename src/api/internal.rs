@@ -18,6 +18,7 @@ use std::{
 
 use arrayvec::ArrayVec;
 use av_scenechange::SceneChangeDetector;
+use num_traits::PrimInt;
 
 use crate::{
   activity::ActivityMask,
@@ -226,6 +227,7 @@ type FrameQueue<T> = BTreeMap<u64, Option<Arc<Frame<T>>>>;
 type FrameDataQueue<T> = BTreeMap<u64, Option<FrameData<T>>>;
 pub type HashType = u32;
 pub const HASHMASK: HashType = 0xFFFFFFFF;
+pub const HASHSIZE: u32 = u32::BITS - HASHMASK.leading_zeros();
 
 // the fields pub(super) are accessed only by the tests
 pub(crate) struct ContextInner<T: Pixel> {
@@ -265,7 +267,7 @@ pub(crate) struct ContextInner<T: Pixel> {
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
   hashmap: Arc<RwLock<HashMap<HashType, HashObject>>>,
-  new_hashmap: Arc<Mutex<Vec<(HashType, HashObject)>>>,
+  hash_buffer: Arc<Mutex<Vec<(HashType, HashObject)>>>,
 }
 
 pub struct HashObject {
@@ -344,7 +346,7 @@ impl<T: Pixel> ContextInner<T> {
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
       hashmap: Arc::new(RwLock::new(HashMap::new())),
-      new_hashmap: Arc::new(Mutex::new(Vec::new())),
+      hash_buffer: Arc::new(Mutex::new(Vec::new())),
     }
   }
 
@@ -1437,7 +1439,7 @@ impl<T: Pixel> ContextInner<T> {
       &mut frame_data.fs,
       &self.inter_cfg,
       self.hashmap.clone(),
-      Some(self.new_hashmap.clone()),
+      Some(self.hash_buffer.clone()),
     );
     #[cfg(feature = "dump_lookahead_data")]
     {
@@ -1507,9 +1509,9 @@ impl<T: Pixel> ContextInner<T> {
     /*   {
       let mut hashmap_lock =
         self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let new_hashmap_lock =
-        self.new_hashmap.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      new_hashmap_lock.iter().for_each(|v| {
+      let hash_buffer_lock=
+        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
+      hash_buffer_lock.iter().for_each(|v| {
         let (hash, value) = v;
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
       });
@@ -1575,7 +1577,7 @@ impl<T: Pixel> ContextInner<T> {
       let mut hashmap_lock =
         self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
       let hash_buffer_lock =
-        self.new_hashmap.lock().expect("FAILED TO LOCK NEW HASHMAP");
+        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
       hash_buffer_lock.iter().for_each(|v| {
         let (hash, value) = v;
         hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
