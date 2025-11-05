@@ -11,7 +11,7 @@
 use std::{
   cmp,
   collections::{BTreeMap, BTreeSet, HashMap},
-  env, fs, mem,
+  env, fs,
   path::PathBuf,
   sync::{Arc, Mutex, RwLock},
 };
@@ -225,10 +225,11 @@ impl<T: Pixel> FrameData<T> {
 
 type FrameQueue<T> = BTreeMap<u64, Option<Arc<Frame<T>>>>;
 type FrameDataQueue<T> = BTreeMap<u64, Option<FrameData<T>>>;
-pub type HashType = u32;
-pub type HashMapType = Arc<RwLock<HashMap<HashType, HashObject>>>;
-pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject)>>>;
-pub const HASHMASK: HashType = 0xFFFFFFFF;
+pub type HashType = u16;
+pub type HashMapType = HashMap<HashType, HashObject>;
+pub type HashMapVecType = Arc<RwLock<[HashMapType; TxSize::TX_SIZES_ALL]>>;
+pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject, usize)>>>;
+pub const HASHMASK: HashType = 0xFFFF;
 
 // the fields pub(super) are accessed only by the tests
 pub(crate) struct ContextInner<T: Pixel> {
@@ -267,7 +268,7 @@ pub(crate) struct ContextInner<T: Pixel> {
   opaque_q: BTreeMap<u64, Opaque>,
   /// Optional T35 metadata per frame
   t35_q: BTreeMap<u64, Box<[T35]>>,
-  hashmap: HashMapType,
+  hashmap: HashMapVecType,
   hash_buffer: HashBufferType,
 }
 
@@ -346,7 +347,7 @@ impl<T: Pixel> ContextInner<T> {
       next_lookahead_output_frameno: 0,
       opaque_q: BTreeMap::new(),
       t35_q: BTreeMap::new(),
-      hashmap: Arc::new(RwLock::new(HashMap::new())),
+      hashmap: Arc::new(RwLock::new(Default::default())),
       hash_buffer: Arc::new(Mutex::new(Vec::new())),
     }
   }
@@ -1575,13 +1576,16 @@ impl<T: Pixel> ContextInner<T> {
     }
 
     {
-      let mut hashmap_lock =
+      let mut hashmaps_lock =
         self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let hash_buffer_lock =
+      let mut hash_buffer_lock =
         self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      hash_buffer_lock.iter().for_each(|v| {
-        let (hash, value) = v;
-        hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
+      hash_buffer_lock.iter_mut().for_each(|v| {
+        let (hash, value, tx_size) = v;
+        if let Some(hashmap_lock) = hashmaps_lock.get_mut(*tx_size) {
+          hashmap_lock
+            .insert(*hash, HashObject { cul_level: value.cul_level });
+        }
       });
     }
 
