@@ -99,27 +99,27 @@ impl TxType {
 /// Transform Size
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub enum TxSize {
-  TX_4X4,
-  TX_8X8,
-  TX_16X16,
-  TX_32X32,
-  TX_64X64,
+  TX_4X4 = 0,
+  TX_8X8 = 1,
+  TX_16X16 = 2,
+  TX_32X32 = 3,
+  TX_64X64 = 4,
 
-  TX_4X8,
-  TX_8X4,
-  TX_8X16,
-  TX_16X8,
-  TX_16X32,
-  TX_32X16,
-  TX_32X64,
-  TX_64X32,
+  TX_4X8 = 5,
+  TX_8X4 = 6,
+  TX_8X16 = 7,
+  TX_16X8 = 8,
+  TX_16X32 = 9,
+  TX_32X16 = 10,
+  TX_32X64 = 11,
+  TX_64X32 = 12,
 
-  TX_4X16,
-  TX_16X4,
-  TX_8X32,
-  TX_32X8,
-  TX_16X64,
-  TX_64X16,
+  TX_4X16 = 13,
+  TX_16X4 = 14,
+  TX_8X32 = 15,
+  TX_32X8 = 16,
+  TX_16X64 = 17,
+  TX_64X16 = 18,
 }
 
 impl TxSize {
