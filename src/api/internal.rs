@@ -225,11 +225,12 @@ impl<T: Pixel> FrameData<T> {
 
 type FrameQueue<T> = BTreeMap<u64, Option<Arc<Frame<T>>>>;
 type FrameDataQueue<T> = BTreeMap<u64, Option<FrameData<T>>>;
+// NOTE: Change this to set the size of hashes used in coeff hashing
 pub type HashType = u16;
 pub type HashMapType = HashMap<HashType, HashObject>;
 pub type HashMapVecType = Arc<RwLock<[HashMapType; TxSize::TX_SIZES_ALL]>>;
 pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject, usize)>>>;
-pub const HASHMASK: HashType = 0xFFFF;
+pub const HASHMASK: HashType = HashType::MAX;
 
 // the fields pub(super) are accessed only by the tests
 pub(crate) struct ContextInner<T: Pixel> {
@@ -1508,21 +1509,24 @@ impl<T: Pixel> ContextInner<T> {
     let fi = &frame_data.fi;
 
     self.output_frameno += 1;
-    /*   {
-      let mut hashmap_lock =
-        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let hash_buffer_lock=
-        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      hash_buffer_lock.iter().for_each(|v| {
-        let (hash, value) = v;
-        hashmap_lock.insert(*hash, HashObject { cul_level: value.cul_level });
-      });
-    }*/
-
     if fi.show_frame {
       let input_frameno = fi.input_frameno;
       let frame_type = fi.frame_type;
       let qp = fi.base_q_idx;
+      {
+        let mut hashmap_lock =
+          self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
+        let mut hash_buffer_lock =
+          self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
+        hash_buffer_lock.iter().for_each(|v| {
+          let (hash, value, tx) = v;
+          let mut hashmap =
+            hashmap_lock.get_mut(*tx).expect("FAILED TO FIND HASHMAP");
+          hashmap.insert(*hash, HashObject { cul_level: value.cul_level });
+        });
+        *hash_buffer_lock = Vec::new();
+      }
+
       self.finalize_packet(
         rec,
         source,
@@ -1532,6 +1536,11 @@ impl<T: Pixel> ContextInner<T> {
         enc_stats,
       )
     } else {
+      {
+        let mut hash_buffer_lock =
+          self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
+        *hash_buffer_lock = Vec::new();
+      }
       Err(EncoderStatus::Encoded)
     }
   }
@@ -1573,20 +1582,6 @@ impl<T: Pixel> ContextInner<T> {
     if let Ok(ref mut pkt) = ret {
       self.garbage_collect(pkt.input_frameno);
       pkt.opaque = self.opaque_q.remove(&pkt.input_frameno);
-    }
-
-    {
-      let mut hashmaps_lock =
-        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let mut hash_buffer_lock =
-        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      hash_buffer_lock.iter_mut().for_each(|v| {
-        let (hash, value, tx_size) = v;
-        if let Some(hashmap_lock) = hashmaps_lock.get_mut(*tx_size) {
-          hashmap_lock
-            .insert(*hash, HashObject { cul_level: value.cul_level });
-        }
-      });
     }
 
     ret

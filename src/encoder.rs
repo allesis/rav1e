@@ -1627,15 +1627,12 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     // For now a lock will be used
     let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
     if let Some(hashmap_lock) = hashmaps_lock.get(tx_size as usize) {
-      match hashmap_lock.get(&hash) {
-        Some(hash_object) => {
-          // We have previously sent these coefficents
-          //panic!("USED A HASH");
-          // Marker is 1
-          marker = 0;
-          cul_lvl = hash_object.cul_level;
-        }
-        None => {}
+      if let Some(hash_object) = hashmap_lock.get(&hash) {
+        // We have previously sent these coefficents
+        //panic!("USED A HASH");
+        // Marker is 1
+        marker = 0;
+        cul_lvl = hash_object.cul_level;
       }
     }
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
@@ -1691,6 +1688,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
         hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
       let hash_object = HashObject { cul_level: cul_lvl };
       hash_buffer_lock.push((hash, hash_object, tx_size as usize));
+      //println!("HASH {:?}", hash);
     }
   }
 
@@ -2989,10 +2987,12 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       // This means we won't write the previous hashes to the bitstream
       // So throw them away before adding them to the hashmap
 
+      /*
       if let Some(ref hash_buffer) = hash_buffer {
         let mut hash_buffer_lock = hash_buffer.lock().unwrap();
         *hash_buffer_lock = Vec::new();
       }
+      */
       assert!(!rdo_output.part_modes.is_empty());
       cw.rollback(&cw_checkpoint);
       w_pre_cdef.rollback(&w_pre_checkpoint);
@@ -3851,21 +3851,6 @@ fn encode_tile<'a, T: Pixel>(
       );
     }
   }
-  {
-    let mut hashmaps_lock = hashmap.write().expect("FAILED TO LOCK HASHMAP");
-    if let Some(hash_buffer) = hash_buffer {
-      let mut hash_buffer_lock =
-        hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      hash_buffer_lock.iter_mut().for_each(|v| {
-        let (hash, value, tx_size) = v;
-        if let Some(hashmap_lock) = hashmaps_lock.get_mut(*tx_size) {
-          hashmap_lock
-            .insert(*hash, HashObject { cul_level: value.cul_level });
-        }
-      });
-    }
-  }
-
   assert!(
     sbs_q.is_empty(),
     "Superblock queue not empty in tile at offset {}:{}",

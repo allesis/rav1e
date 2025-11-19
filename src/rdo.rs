@@ -771,7 +771,8 @@ pub fn rdo_tx_size_type<T: Pixel>(
       tx_types,
       best_rd,
       hashmap.clone(),
-      hash_buffer.clone(),
+      None,
+      //hash_buffer.clone(),
     );
 
     if rd_cost < best_rd {
@@ -869,7 +870,8 @@ fn luma_chroma_mode_rdo<T: Pixel>(
         mvs,
         skip,
         hashmap.clone(),
-        hash_buffer.clone(),
+        None,
+        //hash_buffer.clone(),
       );
       for &chroma_mode in mode_set_chroma.iter() {
         let wr = &mut WriterCounter::new();
