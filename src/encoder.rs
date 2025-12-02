@@ -18,7 +18,9 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
+use nom::combinator::eof;
 use rayon::iter::*;
+use v_frame::plane;
 
 use crate::{
   activity::*,
@@ -1626,7 +1628,9 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     // If we use a try_lock, we may miss chances to decrease encoding size
     // For now a lock will be used
     let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-    if let Some(hashmap_lock) = hashmaps_lock.get(tx_size as usize) {
+    if let Some(hashmap_lock) =
+      hashmaps_lock.get(plane_bsize.tx_size() as usize)
+    {
       if let Some(hash_object) = hashmap_lock.get(&hash) {
         // We have previously sent these coefficents
         //panic!("USED A HASH");
@@ -1682,13 +1686,25 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
   // EOB may have been dropped at this point so resetting it may be useless
 
-  if marker == 1 {
+  if marker == 1
+    && !skip
+    && (need_recon_pixel || rdo_type.needs_coeff_rate())
+    && eob != 0
+    && fi.frame_type != FrameType::KEY
+  {
     if let Some(hash_buffer) = hash_buffer {
       let mut hash_buffer_lock =
         hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
       let hash_object = HashObject { cul_level: cul_lvl };
-      hash_buffer_lock.push((hash, hash_object, tx_size as usize));
-      //println!("HASH {:?}", hash);
+      hash_buffer_lock.push((
+        hash,
+        hash_object,
+        plane_bsize.tx_size() as usize,
+      ));
+      /*     if hash == 36079 {
+        println!("HASH {:?}", hash);
+        println!("TX {:?}", tx_size as usize);
+      }*/
     }
   }
 

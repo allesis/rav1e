@@ -18,6 +18,7 @@ use std::{
 
 use arrayvec::ArrayVec;
 use av_scenechange::SceneChangeDetector;
+use v_frame::pixel::ChromaSampling;
 
 use crate::{
   activity::ActivityMask,
@@ -232,6 +233,10 @@ pub type HashMapVecType = Arc<RwLock<[HashMapType; TxSize::TX_SIZES_ALL]>>;
 pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject, usize)>>>;
 pub const HASHMASK: HashType = HashType::MAX;
 
+pub struct HashObject {
+  pub cul_level: u8,
+}
+
 // the fields pub(super) are accessed only by the tests
 pub(crate) struct ContextInner<T: Pixel> {
   pub(crate) frame_count: u64,
@@ -271,10 +276,6 @@ pub(crate) struct ContextInner<T: Pixel> {
   t35_q: BTreeMap<u64, Box<[T35]>>,
   hashmap: HashMapVecType,
   hash_buffer: HashBufferType,
-}
-
-pub struct HashObject {
-  pub cul_level: u8,
 }
 
 impl<T: Pixel> ContextInner<T> {
@@ -1507,25 +1508,27 @@ impl<T: Pixel> ContextInner<T> {
     let frame_data =
       self.frame_data.get(&cur_output_frameno).unwrap().as_ref().unwrap();
     let fi = &frame_data.fi;
+    {
+      let mut hashmap_lock =
+        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
+      let mut hash_buffer_lock =
+        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
+      if fi.show_frame {
+        hash_buffer_lock.iter().for_each(|v| {
+          let (hash, value, tx) = v;
+          let hashmap =
+            hashmap_lock.get_mut(*tx).expect("FAILED TO FIND HASHMAP");
+          hashmap.insert(*hash, HashObject { cul_level: value.cul_level });
+        });
+      }
+      *hash_buffer_lock = Vec::new();
+    }
 
     self.output_frameno += 1;
     if fi.show_frame {
       let input_frameno = fi.input_frameno;
       let frame_type = fi.frame_type;
       let qp = fi.base_q_idx;
-      {
-        let mut hashmap_lock =
-          self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-        let mut hash_buffer_lock =
-          self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-        hash_buffer_lock.iter().for_each(|v| {
-          let (hash, value, tx) = v;
-          let mut hashmap =
-            hashmap_lock.get_mut(*tx).expect("FAILED TO FIND HASHMAP");
-          hashmap.insert(*hash, HashObject { cul_level: value.cul_level });
-        });
-        *hash_buffer_lock = Vec::new();
-      }
 
       self.finalize_packet(
         rec,
@@ -1536,11 +1539,6 @@ impl<T: Pixel> ContextInner<T> {
         enc_stats,
       )
     } else {
-      {
-        let mut hash_buffer_lock =
-          self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-        *hash_buffer_lock = Vec::new();
-      }
       Err(EncoderStatus::Encoded)
     }
   }

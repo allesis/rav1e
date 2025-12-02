@@ -1841,19 +1841,19 @@ impl ContextWriter<'_> {
       symbol_with_update!(self, w, (marker == 0) as u32, cdf);
     }
 
+    //   use log::info;
+
+    /*if hash == 36079 {
+      info!("Used hash {}\nHave some debug info!", hash);
+      info!("Tx Size   -> {:?}", tx_size);
+      info!("Pred Mode -> {:?}", pred_mode);
+      info!("Block Size-> {}", plane_bsize);
+      info!("Tx Type   -> {:?}", tx_type);
+      info!("Offset    -> {:?}", bo);
+      info!("(x,y) dec -> ({},{})", xdec, ydec);
+    }*/
+
     if marker == 0 {
-      use log::info;
-
-      if hash == 36079 {
-        info!("Used hash {}\nHave some debug info!", hash);
-        info!("Tx Size   -> {:?}", tx_size);
-        info!("Pred Mode -> {:?}", pred_mode);
-        info!("Block Size-> {}", plane_bsize);
-        info!("Tx Type   -> {:?}", tx_type);
-        info!("Offset    -> {:?}", bo);
-        info!("(x,y) dec -> ({},{})", xdec, ydec);
-      }
-
       for byte in hash.to_be_bytes() {
         w.bit(((byte >> 7) & 0b1).into());
         w.bit(((byte >> 6) & 0b1).into());
