@@ -3170,8 +3170,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             tile_bo,
             inter_cfg,
             hashmap.clone(),
-            // hash_buffer.clone(),
-            None,
+            hash_buffer.clone(),
+            //None,
           );
           &rdo_decision
         };
@@ -3359,7 +3359,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             inter_cfg,
             enc_stats,
             hashmap.clone(),
-            hash_buffer.clone(),
+            None,
           );
         }
       } else {
@@ -3396,7 +3396,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             inter_cfg,
             enc_stats,
             hashmap.clone(),
-            hash_buffer.clone(),
+            None,
           );
         });
       }
