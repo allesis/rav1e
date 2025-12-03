@@ -1627,16 +1627,15 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     // which may DESTROY performance
     // If we use a try_lock, we may miss chances to decrease encoding size
     // For now a lock will be used
-    let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-    if let Some(hashmap_lock) =
-      hashmaps_lock.get(plane_bsize.tx_size() as usize)
-    {
-      if let Some(hash_object) = hashmap_lock.get(&hash) {
-        // We have previously sent these coefficents
-        //panic!("USED A HASH");
-        // Marker is 1
-        marker = 0;
-        cul_lvl = hash_object.cul_level;
+    if fi.frame_type != FrameType::KEY {
+      let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
+      if let Some(hashmap_lock) =
+        hashmaps_lock.get(plane_bsize.tx_size() as usize)
+      {
+        if let Some(hash_object) = hashmap_lock.get(&hash) {
+          marker = 0;
+          cul_lvl = hash_object.cul_level;
+        }
       }
     }
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
@@ -3135,8 +3134,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
       rdo_type,
       inter_cfg,
       hashmap.clone(),
-      None,
-      // hash_buffer.clone(),
+      None, // WARN: Must be none
     );
     rdo_output.part_type
   } else {
@@ -3203,8 +3201,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         mvs,
         skip,
         hashmap.clone(),
-        None,
-        // hash_buffer.clone(),
+        //None,
+        hash_buffer.clone(),
       );
 
       let mut mv_stack = ArrayVec::<CandidateMV, 9>::new();
@@ -3359,7 +3357,8 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             inter_cfg,
             enc_stats,
             hashmap.clone(),
-            None,
+            //None,
+            hash_buffer.clone(),
           );
         }
       } else {
@@ -3396,7 +3395,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             inter_cfg,
             enc_stats,
             hashmap.clone(),
-            None,
+            hash_buffer.clone(),
           );
         });
       }
