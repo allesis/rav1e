@@ -30,17 +30,21 @@ use crate::{
   deblock::*,
   ec::*,
   frame::*,
-  hash::hashcoeffs,
+  hash::{
+    HashBufferType, HashMapVecType, HashObject, HashType,
+    hash_buffer::{HashBuffer, commit, optionize_buffer, rollback},
+    hashcoeffs,
+  },
   header::*,
   lrf::*,
   mc::{FilterMode, MotionVector},
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
   },
   quantize::*,
-  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
+  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1687,6 +1691,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // EOB may have been dropped at this point so resetting it may be useless
 
   if marker == 1
+    && has_coeff
     && !skip
     && (need_recon_pixel || rdo_type.needs_coeff_rate())
     && eob != 0
@@ -2725,7 +2730,6 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
       mvs,
       skip,
       hashmap.clone(),
-      hash_buffer.clone(),
     )
   } else {
     (mode_decision.tx_size, mode_decision.tx_type)
@@ -2762,7 +2766,8 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
     true,
     enc_stats,
     hashmap.clone(),
-    hash_buffer.clone(),
+    //hash_buffer.clone(),
+    None,
   );
 }
 
@@ -2813,6 +2818,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
 
   let mut best_partition = PartitionType::PARTITION_INVALID;
 
+  let buffer: Option<HashBuffer> = HashBuffer::new(hash_buffer);
+
   let cw_checkpoint = cw.checkpoint(&tile_bo, fi.sequence.chroma_sampling);
   let w_pre_checkpoint = w_pre_cdef.checkpoint();
   let w_post_checkpoint = w_post_cdef.checkpoint();
@@ -2836,8 +2843,6 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       tile_bo,
       inter_cfg,
       hashmap.clone(),
-      None,
-      //hash_buffer.clone(),
     );
 
     if !mode_decision.pred_mode_luma.is_intra() {
@@ -2870,7 +2875,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
         rdo_type,
         Some(enc_stats),
         hashmap.clone(),
-        hash_buffer.clone(),
+        optionize_buffer!(buffer),
       );
     }
   } // if !must_split
@@ -2912,6 +2917,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
         has_rows || has_cols || (partition == PartitionType::PARTITION_SPLIT)
       );
 
+      rollback!(buffer);
       cw.rollback(&cw_checkpoint);
       w_pre_cdef.rollback(&w_pre_checkpoint);
       w_post_cdef.rollback(&w_post_checkpoint);
@@ -2962,7 +2968,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           inter_cfg,
           enc_stats,
           hashmap.clone(),
-          None,
+          optionize_buffer!(buffer),
         );
         let cost = child_rdo_output.rd_cost;
         assert!(cost >= 0.0);
@@ -3010,6 +3016,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       }
       */
       assert!(!rdo_output.part_modes.is_empty());
+
+      rollback!(buffer);
       cw.rollback(&cw_checkpoint);
       w_pre_cdef.rollback(&w_pre_checkpoint);
       w_post_cdef.rollback(&w_post_checkpoint);
@@ -3048,11 +3056,13 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           rdo_type,
           Some(enc_stats),
           hashmap.clone(),
-          hash_buffer.clone(),
+          optionize_buffer!(buffer),
         );
       }
     }
   } // if can_split {
+
+  commit!(buffer);
 
   assert!(best_partition != PartitionType::PARTITION_INVALID);
 
@@ -3135,8 +3145,6 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
       rdo_type,
       inter_cfg,
       hashmap.clone(),
-      None,
-      // hash_buffer.clone(),
     );
     rdo_output.part_type
   } else {
@@ -3170,8 +3178,6 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             tile_bo,
             inter_cfg,
             hashmap.clone(),
-            // hash_buffer.clone(),
-            None,
           );
           &rdo_decision
         };
@@ -3203,8 +3209,6 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         mvs,
         skip,
         hashmap.clone(),
-        None,
-        // hash_buffer.clone(),
       );
 
       let mut mv_stack = ArrayVec::<CandidateMV, 9>::new();
@@ -3359,6 +3363,7 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             inter_cfg,
             enc_stats,
             hashmap.clone(),
+            //None,
             hash_buffer.clone(),
           );
         }

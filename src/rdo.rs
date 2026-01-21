@@ -16,32 +16,34 @@ use arrayvec::*;
 use itertools::izip;
 
 use crate::{
+  Tune,
   api::*,
   cdef::*,
   context::*,
   cpu_features::CpuFeatureLevel,
   deblock::*,
   dist::*,
-  ec::{Writer, WriterCounter, OD_BITRES},
+  ec::{OD_BITRES, Writer, WriterCounter},
   encode_block_post_cdef, encode_block_pre_cdef, encode_block_with_modes,
   encoder::{FrameInvariants, IMPORTANCE_BLOCK_SIZE},
   frame::*,
+  hash::{HashBufferType, HashMapVecType},
   header::ReferenceMode,
   lrf::*,
   mc::MotionVector,
-  me::{estimate_motion, MVSamplingMode, MotionSearchResult},
+  me::{MVSamplingMode, MotionSearchResult, estimate_motion},
   motion_compensate,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam,
-    PredictionMode, RAV1E_INTER_COMPOUND_MODES, RAV1E_INTER_MODES_MINIMAL,
-    RAV1E_INTRA_MODES,
+    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+    RAV1E_INTER_COMPOUND_MODES, RAV1E_INTER_MODES_MINIMAL, RAV1E_INTRA_MODES,
+    luma_ac,
   },
   rdo_tables::*,
   tiling::*,
-  transform::{TxSet, TxSize, TxType, RAV1E_TX_TYPES},
-  util::{init_slice_repeat_mut, Aligned, Pixel},
-  write_tx_blocks, write_tx_tree, Tune,
+  transform::{RAV1E_TX_TYPES, TxSet, TxSize, TxType},
+  util::{Aligned, Pixel, init_slice_repeat_mut},
+  write_tx_blocks, write_tx_tree,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -721,7 +723,7 @@ pub fn rdo_tx_size_type<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   luma_mode: PredictionMode, ref_frames: [RefType; 2], mvs: [MotionVector; 2],
-  skip: bool, hashmap: HashMapVecType, hash_buffer: Option<HashBufferType>,
+  skip: bool, hashmap: HashMapVecType,
 ) -> (TxSize, TxType) {
   let is_inter = !luma_mode.is_intra();
   let mut tx_size = max_txsize_rect_lookup[bsize as usize];
@@ -771,8 +773,6 @@ pub fn rdo_tx_size_type<T: Pixel>(
       tx_types,
       best_rd,
       hashmap.clone(),
-      None,
-      //hash_buffer.clone(),
     );
 
     if rd_cost < best_rd {
@@ -820,7 +820,6 @@ fn luma_chroma_mode_rdo<T: Pixel>(
   mode_set_chroma: &[PredictionMode], luma_mode_is_intra: bool,
   mode_context: usize, mv_stack: &ArrayVec<CandidateMV, 9>,
   angle_delta: AngleDelta, hashmap: HashMapVecType,
-  hash_buffer: Option<HashBufferType>,
 ) {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[1].cfg;
 
@@ -870,8 +869,6 @@ fn luma_chroma_mode_rdo<T: Pixel>(
         mvs,
         skip,
         hashmap.clone(),
-        None,
-        //hash_buffer.clone(),
       );
       for &chroma_mode in mode_set_chroma.iter() {
         let wr = &mut WriterCounter::new();
@@ -914,7 +911,7 @@ fn luma_chroma_mode_rdo<T: Pixel>(
           // CHECK: Is this suppose to be None?
           None,
           hashmap.clone(),
-          hash_buffer.clone(),
+          None,
         );
 
         let rate = wr.tell_frac() - tell;
@@ -968,6 +965,9 @@ fn luma_chroma_mode_rdo<T: Pixel>(
 
 /// RDO-based mode decision
 ///
+/// We should never add hashes found here to the hashmap since they will always be rolled back
+/// We can use hashing to trial encode since that will give us an accurate view of the cost
+///
 /// # Panics
 ///
 /// - If the best RD found is negative.
@@ -977,7 +977,6 @@ pub fn rdo_mode_decision<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig, hashmap: HashMapVecType,
-  hash_buffers: Option<HashBufferType>,
 ) -> PartitionParameters {
   let PlaneConfig { xdec, ydec, .. } = ts.input.planes[1].cfg;
   let cw_checkpoint = cw.checkpoint(&tile_bo, fi.sequence.chroma_sampling);
@@ -1003,7 +1002,7 @@ pub fn rdo_mode_decision<T: Pixel>(
       &cw_checkpoint,
       rdo_type,
       hashmap.clone(),
-      hash_buffers.clone(),
+      None,
     )
   } else {
     PartitionParameters::default()
@@ -1024,7 +1023,7 @@ pub fn rdo_mode_decision<T: Pixel>(
       best,
       is_chroma_block,
       hashmap.clone(),
-      hash_buffers.clone(),
+      None,
     );
   }
 
@@ -1054,7 +1053,7 @@ pub fn rdo_mode_decision<T: Pixel>(
       rdo_type,
       true,
       hashmap.clone(),
-      hash_buffers.clone(),
+      None,
       None,
     );
     cw.rollback(&cw_checkpoint);
@@ -1094,7 +1093,7 @@ pub fn rdo_mode_decision<T: Pixel>(
           true, // For CFL, luma should be always reconstructed.
           None,
           hashmap.clone(),
-          hash_buffers.clone(),
+          None,
         );
 
         let rate = wr.tell_frac() - tell;
@@ -1140,6 +1139,7 @@ pub fn rdo_mode_decision<T: Pixel>(
   }
 }
 
+// CHECK: Does this save the changes
 #[profiling::function]
 fn inter_frame_rdo_mode_decision<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
@@ -1408,7 +1408,6 @@ fn inter_frame_rdo_mode_decision<T: Pixel>(
         &mv_stacks[i],
         AngleDelta::default(),
         hashmap.clone(),
-        hash_buffer.clone(),
       );
     },
   );
@@ -1416,6 +1415,7 @@ fn inter_frame_rdo_mode_decision<T: Pixel>(
   best
 }
 
+// CHECK: Does this save the changes?
 #[profiling::function]
 fn intra_frame_rdo_mode_decision<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
@@ -1560,7 +1560,6 @@ fn intra_frame_rdo_mode_decision<T: Pixel>(
       &ArrayVec::<CandidateMV, 9>::new(),
       AngleDelta::default(),
       hashmap.clone(),
-      hash_buffer.clone(),
     );
   });
 
@@ -1596,7 +1595,6 @@ fn intra_frame_rdo_mode_decision<T: Pixel>(
           &mv_stack,
           AngleDelta { y, uv },
           hashmap.clone(),
-          hash_buffer.clone(),
         );
       }
       best.angle_delta
@@ -1722,6 +1720,8 @@ pub fn rdo_cfl_alpha<T: Pixel>(
 /// RDO-based transform type decision
 /// If `cw_checkpoint` is `None`, a checkpoint for cw's (`ContextWriter`) current
 /// state is created and stored for later use.
+/// We should not use the hash_buffer here since the encoding is always rolled back
+/// We can use hashing here since that will give a better estimate of the cost
 ///
 /// # Panics
 ///
@@ -1735,7 +1735,6 @@ pub fn rdo_tx_type_decision<T: Pixel>(
   mode: PredictionMode, ref_frames: [RefType; 2], mvs: [MotionVector; 2],
   bsize: BlockSize, tile_bo: TileBlockOffset, tx_size: TxSize, tx_set: TxSet,
   tx_types: &[TxType], cur_best_rd: f64, hashmap: HashMapVecType,
-  hash_buffer: Option<HashBufferType>,
 ) -> (TxType, f64) {
   let mut best_type = TxType::DCT_DCT;
   let mut best_rd = f64::MAX;
@@ -1792,7 +1791,7 @@ pub fn rdo_tx_type_decision<T: Pixel>(
         rdo_type,
         need_recon_pixel,
         hashmap.clone(),
-        hash_buffer.clone(),
+        None,
         None,
       )
     } else {
@@ -1814,7 +1813,7 @@ pub fn rdo_tx_type_decision<T: Pixel>(
         rdo_type,
         need_recon_pixel,
         hashmap.clone(),
-        hash_buffer.clone(),
+        None,
         None,
       )
     };
@@ -1888,20 +1887,12 @@ fn rdo_partition_none<T: Pixel>(
   fi: &FrameInvariants<T>, ts: &mut TileStateMut<'_, T>,
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig, child_modes: &mut ArrayVec<PartitionParameters, 4>,
-  hashmap: HashMapVecType, hash_buffer: Option<HashBufferType>,
+  hashmap: HashMapVecType,
 ) -> f64 {
   debug_assert!(tile_bo.0.x < ts.mi_width && tile_bo.0.y < ts.mi_height);
 
-  let mode = rdo_mode_decision(
-    fi,
-    ts,
-    cw,
-    bsize,
-    tile_bo,
-    inter_cfg,
-    hashmap.clone(),
-    hash_buffer.clone(),
-  );
+  let mode =
+    rdo_mode_decision(fi, ts, cw, bsize, tile_bo, inter_cfg, hashmap.clone());
   let cost = mode.rd_cost;
 
   child_modes.push(mode);
@@ -1961,7 +1952,6 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
         offset,
         inter_cfg,
         hashmap.clone(),
-        hash_buffer.clone(),
       );
 
       rd_cost_sum += mode_decision.rd_cost;
@@ -1974,6 +1964,7 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
           if cw.bc.cdef_coded { w_post_cdef } else { w_pre_cdef };
         cw.write_partition(w, offset, PartitionType::PARTITION_NONE, subsize);
       }
+      // CHECK: Does this throw away the encoding?
       encode_block_with_modes(
         fi,
         ts,
@@ -1986,7 +1977,7 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
         rdo_type,
         None,
         hashmap.clone(),
-        hash_buffer.clone(),
+        None, // HERE: HERE
       );
       child_modes.push(mode_decision);
     } else {
@@ -2000,6 +1991,9 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
 
 /// RDO-based single level partitioning decision
 ///
+/// We should not use hash_buffer here since it will always be rolled back
+/// We should use hashing here since it will provide a better estimate of the cost
+///
 /// # Panics
 ///
 /// - If the best RD found is negative.
@@ -2011,7 +2005,6 @@ pub fn rdo_partition_decision<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   cached_block: &PartitionGroupParameters, partition_types: &[PartitionType],
   rdo_type: RDOType, inter_cfg: &InterConfig, hashmap: HashMapVecType,
-  hash_buffer: Option<HashBufferType>,
 ) -> PartitionGroupParameters {
   let mut best_partition = cached_block.part_type;
   let mut best_rd = cached_block.rd_cost;
@@ -2040,7 +2033,6 @@ pub fn rdo_partition_decision<T: Pixel, W: Writer>(
           inter_cfg,
           &mut child_modes,
           hashmap.clone(),
-          hash_buffer.clone(),
         ))
       }
       PARTITION_SPLIT | PARTITION_HORZ | PARTITION_VERT => {
@@ -2058,7 +2050,7 @@ pub fn rdo_partition_decision<T: Pixel, W: Writer>(
           best_rd,
           &mut child_modes,
           hashmap.clone(),
-          hash_buffer.clone(),
+          None,
         )
       }
       _ => {
@@ -2179,9 +2171,9 @@ pub fn rdo_loop_decision<T: Pixel, W: Writer>(
   // Determine area of optimization: Which plane has the largest LRUs?
   // How many LRUs for each?
   let mut sb_w = 1; // how many superblocks wide the largest LRU
-                    // is/how many SBs we're processing (same thing)
+  // is/how many SBs we're processing (same thing)
   let mut sb_h = 1; // how many superblocks wide the largest LRU
-                    // is/how many SBs we're processing (same thing)
+  // is/how many SBs we're processing (same thing)
   let mut lru_w = [0; MAX_PLANES]; // how many LRUs we're processing
   let mut lru_h = [0; MAX_PLANES]; // how many LRUs we're processing
   for pli in 0..planes {
@@ -2516,7 +2508,7 @@ pub fn rdo_loop_decision<T: Pixel, W: Writer>(
                       )
                     } else {
                       0 // no relative cost differeneces to different
-                        // CDEF params.  If cdef is on, it's a wash.
+                      // CDEF params.  If cdef is on, it's a wash.
                     };
                   }
                   RestorationFilter::Sgrproj { set, xqd } => {
