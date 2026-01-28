@@ -21,8 +21,8 @@ impl HashBuffer {
     let mut temp_buffer_lock =
       self.temp_buffer.lock().expect("Failed to lock temp buffer");
 
-    temp_buffer_lock.drain(0..).for_each(|(hash, value, tx)| {
-      hash_buffer_lock.push((hash, value, tx));
+    temp_buffer_lock.drain(0..).for_each(|(hash, value, tx, bsize)| {
+      hash_buffer_lock.push((hash, value, tx, bsize));
     });
   }
 

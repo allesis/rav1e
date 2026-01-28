@@ -32,6 +32,7 @@ use crate::{
     HashBufferType, HashMapVecType, HashObject, HashType,
     hash_buffer::{HashBuffer, commit, optionize_buffer, rollback},
     hashcoeffs,
+    util::{add_hash_object, get_hash_object},
   },
   header::*,
   lrf::*,
@@ -1622,25 +1623,13 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let mut cul_lvl = 0;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    // We have a hashmap, we should attempt hash based encoding
+    (marker, cul_lvl) = get_hash_object(
+      hashmap,
+      hash,
+      plane_bsize.tx_size() as usize,
+      bsize as usize,
+    );
 
-    // NOTE: This could either be a lock or a try_lock
-    // If a lock is used, we will wait until the hashmap is available to continue
-    // which may DESTROY performance
-    // If we use a try_lock, we may miss chances to decrease encoding size
-    // For now a lock will be used
-    let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-    if let Some(hashmap_lock) =
-      hashmaps_lock.get(plane_bsize.tx_size() as usize)
-    {
-      if let Some(hash_object) = hashmap_lock.get(&hash) {
-        // We have previously sent these coefficents
-        //panic!("USED A HASH");
-        // Marker is 1
-        marker = 0;
-        cul_lvl = hash_object.cul_level;
-      }
-    }
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
     let frame_clipped_txw: usize =
@@ -1695,20 +1684,13 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     && eob != 0
     && fi.frame_type != FrameType::KEY
   {
-    if let Some(hash_buffer) = hash_buffer {
-      let mut hash_buffer_lock =
-        hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
-      let hash_object = HashObject { cul_level: cul_lvl };
-      hash_buffer_lock.push((
-        hash,
-        hash_object,
-        plane_bsize.tx_size() as usize,
-      ));
-      /*     if hash == 36079 {
-        println!("HASH {:?}", hash);
-        println!("TX {:?}", tx_size as usize);
-      }*/
-    }
+    add_hash_object(
+      hash_buffer,
+      cul_lvl,
+      hash,
+      plane_bsize.tx_size() as usize,
+      bsize as usize,
+    );
   }
 
   // Reconstruct
