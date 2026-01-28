@@ -28,7 +28,7 @@ use crate::{
   dist::get_satd,
   encoder::*,
   frame::*,
-  hash::{HashBufferType, HashMapVecType, HashObject},
+  hash::{HashBufferType, HashMapVecType, HashObject, util::add_hashs_to_map},
   partition::*,
   rate::{
     FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
@@ -1497,20 +1497,8 @@ impl<T: Pixel> ContextInner<T> {
     let frame_data =
       self.frame_data.get(&cur_output_frameno).unwrap().as_ref().unwrap();
     let fi = &frame_data.fi;
-    {
-      let mut hashmap_lock =
-        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let mut hash_buffer_lock =
-        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      if fi.show_frame {
-        hash_buffer_lock.iter().for_each(|v| {
-          let (hash, value, tx) = v;
-          let hashmap =
-            hashmap_lock.get_mut(*tx).expect("FAILED TO FIND HASHMAP");
-          hashmap.insert(*hash, HashObject { cul_level: value.cul_level });
-        });
-      }
-      *hash_buffer_lock = Vec::new();
+    if fi.show_frame {
+      add_hashs_to_map(self.hashmap.clone(), self.hash_buffer.clone());
     }
 
     self.output_frameno += 1;
