@@ -1,3 +1,8 @@
+DEFAULT_REMOTE_DIR := '$DEFAULT_REMOTE_DIR'
+DEFAULT_DIRECTORY := `echo ${DEFAULT_DIRECTORY:-"$HOME/video"}`
+DEFAULT_INSTALL_DIR := `echo ${DEFAULT_INSTALL_DIR:-"$HOME/.local/bin"}`
+DEFAULT_INSTALL_NAME := `echo ${DEFAULT_RAV1E_NAME:-"rav1e"}`
+
 all: clean release install
 setup REMOTE_NAME='cluster' REMOTE_DIRECTORY='/cluster/research-groups/wehrwein/home/$(whoami)/video' LOCAL_DIRECTORY='$HOME/video':
   #!/usr/bin/env bash
@@ -30,8 +35,8 @@ release:
 	cargo build --release
 install INSTALL_DIR='$HOME/.local/bin':
 	cp target/debug/rav1e {{INSTALL_DIR}}/rav1e
-install-release INSTALL_DIR='$HOME/.local/bin':
-	cp target/release/rav1e {{INSTALL_DIR}}/rav1e
+install-release INSTALL_DIR=DEFAULT_INSTALL_DIR INSTALL_NAME=DEFAULT_INSTALL_NAME:
+	cp target/release/rav1e {{INSTALL_DIR}}/{{INSTALL_NAME}}
 run VIDEO DIRECTORY='$HOME/video' *ARGS: release
   ./target/release/rav1e -y --threads 1 --low-latency -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
 check VIDEO DIRECTORY='$HOME/video': setup
