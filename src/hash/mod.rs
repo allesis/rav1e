@@ -37,12 +37,12 @@ pub fn hashcoeffs<T: Pixel>(
       coeff.to_i32().unwrap().hash(&mut hasher)
     }
   });
-  /* if eob == 0 {
+  if eob == 0 {
     eob.hash(&mut hasher);
   } else {
     // WARN: Will never subtract with overflow since eob > 0
     (eob - 1).hash(&mut hasher);
-  }*/
+  }
   let hash = hasher.finish();
   (hash & (HASHMASK as u64)).try_into().expect("FAILED TO CONVERT HASH")
 }

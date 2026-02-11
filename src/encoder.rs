@@ -1602,35 +1602,12 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   }
 
   let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
-  /*println!(
-    "HASH {} => EOB {} WIDTH {} HEIGHT {} CF {:?}",
-    hash,
-    eob,
-    tx_size.width(),
-    tx_size.height(),
-    rcoeffs
-  );*/
 
-  use log::debug;
-  debug!(
-    "HASH {:?} -> EOB {} TXTP {} W {} H {} CF {:?}",
-    hash,
-    eob,
-    tx_type as usize,
-    tx_size.width(),
-    tx_size.height(),
-    rcoeffs
-  );
   let mut marker: u16 = 1;
   let mut cul_lvl = 0;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    (marker, cul_lvl) = get_hash_object(
-      hashmap,
-      hash,
-      plane_bsize.tx_size() as usize,
-      bsize as usize,
-    );
+    (marker, cul_lvl) = get_hash_object(hashmap, hash, tx_size as usize, p);
 
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
@@ -1686,13 +1663,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     && eob != 0
     && fi.frame_type != FrameType::KEY
   {
-    add_hash_object(
-      hash_buffer,
-      cul_lvl,
-      hash,
-      plane_bsize.tx_size() as usize,
-      bsize as usize,
-    );
+    add_hash_object(hash_buffer, cul_lvl, hash, tx_size as usize, p);
   }
 
   // Reconstruct
