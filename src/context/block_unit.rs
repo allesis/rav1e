@@ -1811,15 +1811,6 @@ impl ContextWriter<'_> {
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       return (false, cul_lvl);
     }
-    let mut levels_buf = [0u8; TX_PAD_2D];
-    let levels: &mut [u8] =
-      &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
-
-    self.txb_init_levels(coeffs_in, height, levels, height + TX_PAD_HOR);
-
-    let tx_class = tx_type_to_class[tx_type as usize];
-    let plane_type = usize::from(plane != 0);
-
     {
       let cdf = &self.fc.txb_marker_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
       symbol_with_update!(self, w, (marker == 0) as u32, cdf);
@@ -1852,6 +1843,14 @@ impl ContextWriter<'_> {
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       return (true, cul_lvl);
     }
+    let mut levels_buf = [0u8; TX_PAD_2D];
+    let levels: &mut [u8] =
+      &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
+
+    self.txb_init_levels(coeffs_in, height, levels, height + TX_PAD_HOR);
+
+    let tx_class = tx_type_to_class[tx_type as usize];
+    let plane_type = usize::from(plane != 0);
 
     // Signal tx_type for luma plane only
     if plane == 0 {
