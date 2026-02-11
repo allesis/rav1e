@@ -15,11 +15,12 @@ use std::{
 use arrayvec::*;
 
 use crate::{
+  FrameInvariants,
   api::InterConfig,
   context::{
-    BlockOffset, PlaneBlockOffset, SuperBlockOffset, TileBlockOffset,
-    TileSuperBlockOffset, MAX_SB_SIZE_LOG2, MIB_SIZE_LOG2, MI_SIZE,
-    MI_SIZE_LOG2, SB_SIZE,
+    BlockOffset, MAX_SB_SIZE_LOG2, MI_SIZE, MI_SIZE_LOG2, MIB_SIZE_LOG2,
+    PlaneBlockOffset, SB_SIZE, SuperBlockOffset, TileBlockOffset,
+    TileSuperBlockOffset,
   },
   dist::*,
   frame::*,
@@ -27,8 +28,7 @@ use crate::{
   partition::*,
   predict::PredictionMode,
   tiling::*,
-  util::{clamp, ILog, Pixel},
-  FrameInvariants,
+  util::{ILog, Pixel, clamp},
 };
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -849,11 +849,7 @@ fn full_pixel_me<T: Pixel>(
         [MotionVector::default(); 2],
       );
 
-      if results.rd.cost < best.rd.cost {
-        results
-      } else {
-        best
-      }
+      if results.rd.cost < best.rd.cost { results } else { best }
     }
   }
 }

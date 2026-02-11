@@ -9,7 +9,7 @@
 
 #[cfg(test)]
 pub mod test {
-  use rand::{rng, Rng};
+  use rand::{Rng, rng};
 
   use crate::{
     config::CpuFeatureLevel, dist::*, frame::*, partition::BlockSize,

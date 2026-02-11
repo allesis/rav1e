@@ -10,11 +10,11 @@
 use std::cmp;
 
 use crate::{
-  api::{color::ChromaSampling, ContextInner},
+  api::{ContextInner, color::ChromaSampling},
   encoder::TEMPORAL_DELIMITER,
   quantize::{ac_q, dc_q, select_ac_qi, select_dc_qi},
   util::{
-    bexp64, bexp_q24, blog64, clamp, q24_to_q57, q57, q57_to_q24, Pixel,
+    Pixel, bexp_q24, bexp64, blog64, clamp, q24_to_q57, q57, q57_to_q24,
   },
 };
 

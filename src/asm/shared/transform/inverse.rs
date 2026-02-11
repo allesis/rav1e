@@ -78,7 +78,7 @@ pub fn call_inverse_hbd_func<T: Pixel>(
 
 #[cfg(test)]
 pub mod test {
-  use rand::{random, rng, Rng};
+  use rand::{Rng, random, rng};
 
   use super::*;
   use crate::{

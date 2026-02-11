@@ -44,8 +44,8 @@ extern crate pretty_assertions;
 use crate::encoder::*;
 pub use crate::{
   api::{
-    color, Config, Context, EncoderConfig, EncoderStatus, InvalidConfig,
-    Packet,
+    Config, Context, EncoderConfig, EncoderStatus, InvalidConfig, Packet,
+    color,
   },
   frame::Frame,
   util::{CastFromPrimitive, Pixel, PixelType},
@@ -125,7 +125,6 @@ pub mod prelude {
     api::*,
     encoder::{Sequence, Tune},
     frame::{Frame, FrameParameters, FrameTypeOverride, Plane, PlaneConfig},
-    hash::hashframe,
     partition::BlockSize,
     predict::PredictionMode,
     transform::TxType,
@@ -147,12 +146,12 @@ pub mod data {
 pub mod config {
   pub use crate::{
     api::{
-      config::{
-        GrainTableSegment, NoiseGenArgs, TransferFunction, NUM_UV_COEFFS,
-        NUM_UV_POINTS, NUM_Y_COEFFS, NUM_Y_POINTS,
-      },
       Config, EncoderConfig, InvalidConfig, PredictionModesSetting,
       RateControlConfig, RateControlError, RateControlSummary, SpeedSettings,
+      config::{
+        GrainTableSegment, NUM_UV_COEFFS, NUM_UV_POINTS, NUM_Y_COEFFS,
+        NUM_Y_POINTS, NoiseGenArgs, TransferFunction,
+      },
     },
     cpu_features::CpuFeatureLevel,
   };
@@ -231,11 +230,7 @@ pub mod version {
     let s = short();
     let hash = hash();
 
-    if hash.is_empty() {
-      s
-    } else {
-      format!("{s} - {hash}")
-    }
+    if hash.is_empty() { s } else { format!("{s} - {hash}") }
   }
 
   cfg_if::cfg_if! {

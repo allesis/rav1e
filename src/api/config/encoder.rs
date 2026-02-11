@@ -12,7 +12,7 @@ use std::fmt;
 use itertools::*;
 
 use crate::{
-  api::{color::*, config::GrainTableSegment, Rational, SpeedSettings},
+  api::{Rational, SpeedSettings, color::*, config::GrainTableSegment},
   encoder::Tune,
   serialize::{Deserialize, Serialize},
 };

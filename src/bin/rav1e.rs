@@ -20,13 +20,12 @@ mod stats;
 
 use std::{
   fs::File,
-  hash::{DefaultHasher, Hash},
   io::{Read, Seek, Write},
   process::exit,
   sync::Arc,
 };
 
-use rav1e::{config::CpuFeatureLevel, hash::*, prelude::*};
+use rav1e::{config::CpuFeatureLevel, prelude::*};
 
 use crate::{
   common::*,
@@ -400,7 +399,7 @@ fn run() -> Result<(), error::CliError> {
         y4m::Error::OutOfMemory => "The video's frame size exceeds the limit.",
         y4m::Error::EOF => "Unexpected end of input.",
         y4m::Error::BadInput => "Bad y4m input parameters provided.",
-      }))
+      }));
     }
     Ok(d) => d,
   };
@@ -556,7 +555,7 @@ fn run() -> Result<(), error::CliError> {
     match y4m_dec.read_frame() {
       Ok(f) => f,
       Err(_) => {
-        return Err(CliError::new("Skipped more frames than in the input"))
+        return Err(CliError::new("Skipped more frames than in the input"));
       }
     };
   }

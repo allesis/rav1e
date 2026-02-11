@@ -15,17 +15,17 @@ mod test {
   use rand::random;
 
   use crate::{
+    Pixel,
     context::MAX_TX_SIZE,
     cpu_features::CpuFeatureLevel,
     frame::{AsRegion, Plane},
     partition::{BlockSize, IntraEdge},
     predict::{
-      dispatch_predict_intra, pred_cfl_ac, rust, IntraEdgeFilterParameters,
-      PredictionMode, PredictionVariant,
+      IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
+      dispatch_predict_intra, pred_cfl_ac, rust,
     },
     transform::TxSize,
-    util::{slice_assume_init_mut, Aligned},
-    Pixel,
+    util::{Aligned, slice_assume_init_mut},
   };
 
   #[test]

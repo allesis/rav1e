@@ -12,6 +12,7 @@ use std::cmp;
 use rayon::iter::*;
 
 use crate::{
+  DeblockState,
   api::FrameType,
   color::ChromaSampling::Cs400,
   context::*,
@@ -20,8 +21,7 @@ use crate::{
   predict::PredictionMode::*,
   quantize::*,
   tiling::*,
-  util::{clamp, ILog, Pixel},
-  DeblockState,
+  util::{ILog, Pixel, clamp},
 };
 
 fn deblock_adjusted_level(

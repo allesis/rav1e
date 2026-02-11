@@ -9,21 +9,20 @@
 
 use std::mem::MaybeUninit;
 
+use PixelType::{U8, U16};
 use libc::{self, c_int, ptrdiff_t};
-use PixelType::{U16, U8};
 
 use crate::{
+  Pixel, PixelType,
   context::MAX_TX_SIZE,
   cpu_features::CpuFeatureLevel,
   partition::{BlockSize, IntraEdge},
   predict::{
-    rust,
+    IntraEdgeFilterParameters, PredictionMode, PredictionVariant, rust,
     rust::{dr_intra_derivative, select_ief_strength, select_ief_upsample},
-    IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
   },
   tiling::{PlaneRegion, PlaneRegionMut},
   transform::TxSize,
-  Pixel, PixelType,
 };
 
 macro_rules! decl_cfl_ac_fn {

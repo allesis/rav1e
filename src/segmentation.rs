@@ -8,13 +8,13 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use crate::{
+  FrameInvariants, FrameState,
   context::*,
   header::PRIMARY_REF_NONE,
   partition::BlockSize,
-  rdo::{spatiotemporal_scale, DistortionScale},
+  rdo::{DistortionScale, spatiotemporal_scale},
   tiling::TileStateMut,
   util::Pixel,
-  FrameInvariants, FrameState,
 };
 
 pub const MAX_SEGMENTS: usize = 8;

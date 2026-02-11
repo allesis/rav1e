@@ -21,7 +21,7 @@ use arrayvec::*;
 
 use crate::{
   color::ChromaSampling,
-  ec::{Writer, OD_BITRES},
+  ec::{OD_BITRES, Writer},
   encoder::FrameInvariants,
   entropymode::*,
   frame::*,

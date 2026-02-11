@@ -13,7 +13,7 @@ use av_scenechange::SceneChangeDetector;
 use crossbeam::channel::*;
 
 use crate::{
-  api::{channel::data::*, config::*, util::*, EncoderConfig, InterConfig},
+  api::{EncoderConfig, InterConfig, channel::data::*, config::*, util::*},
   frame::*,
   util::Pixel,
 };

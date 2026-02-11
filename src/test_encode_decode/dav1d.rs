@@ -20,7 +20,7 @@ use log::debug;
 
 use super::*;
 use crate::{
-  test_encode_decode::{compare_plane, DecodeResult, TestDecoder},
+  test_encode_decode::{DecodeResult, TestDecoder, compare_plane},
   util::{CastFromPrimitive, Pixel},
 };
 

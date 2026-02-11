@@ -27,7 +27,7 @@ pub mod rust {
 
   use super::*;
   use crate::transform::{
-    av1_round_shift_array, forward_shared::*, valid_av1_transform, TxSize,
+    TxSize, av1_round_shift_array, forward_shared::*, valid_av1_transform,
   };
 
   type TxfmFunc = fn(&mut [i32]);

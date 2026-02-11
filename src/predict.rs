@@ -23,10 +23,10 @@ cfg_if::cfg_if! {
   }
 }
 
-use aligned_vec::{avec, ABox};
+use aligned_vec::{ABox, avec};
 
 use crate::{
-  context::{TileBlockOffset, MAX_SB_SIZE_LOG2, MAX_TX_SIZE},
+  context::{MAX_SB_SIZE_LOG2, MAX_TX_SIZE, TileBlockOffset},
   cpu_features::CpuFeatureLevel,
   encoder::FrameInvariants,
   frame::*,
@@ -628,11 +628,7 @@ static sm_weight_arrays: [u8; 2 * MAX_TX_SIZE] = [
 const fn get_scaled_luma_q0(alpha_q3: i16, ac_pred_q3: i16) -> i32 {
   let scaled_luma_q6 = (alpha_q3 as i32) * (ac_pred_q3 as i32);
   let abs_scaled_luma_q0 = (scaled_luma_q6.abs() + 32) >> 6;
-  if scaled_luma_q6 < 0 {
-    -abs_scaled_luma_q0
-  } else {
-    abs_scaled_luma_q0
-  }
+  if scaled_luma_q6 < 0 { -abs_scaled_luma_q0 } else { abs_scaled_luma_q0 }
 }
 
 /// # Returns

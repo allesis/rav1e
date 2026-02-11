@@ -10,16 +10,16 @@
 use std::{fs::File, io, io::prelude::*, path::PathBuf, sync::OnceLock};
 
 use clap::{
-  builder::{styling::AnsiColor, Styles},
   CommandFactory, Parser as Clap, Subcommand,
+  builder::{Styles, styling::AnsiColor},
 };
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use rav1e::{config::CpuFeatureLevel, prelude::*};
 use scan_fmt::scan_fmt;
 
 use crate::{
   error::*,
-  muxer::{create_muxer, Muxer},
+  muxer::{Muxer, create_muxer},
   stats::MetricsEnabled,
 };
 
@@ -545,7 +545,9 @@ fn parse_config(matches: &CliOptions) -> Result<EncoderConfig, CliError> {
   if speed > 10 {
     panic!("Speed must be between 0-10");
   } else if min_interval > max_interval {
-    panic!("Maximum keyframe interval must be greater than or equal to minimum keyframe interval");
+    panic!(
+      "Maximum keyframe interval must be greater than or equal to minimum keyframe interval"
+    );
   }
 
   let color_primaries = matches.primaries.unwrap_or_default();

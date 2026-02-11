@@ -49,7 +49,7 @@ mod test {
 
   use crate::{
     cpu_features::*,
-    transform::{forward_transform, get_valid_txfm_types, TxSize},
+    transform::{TxSize, forward_transform, get_valid_txfm_types},
     util::slice_assume_init_mut,
   };
 

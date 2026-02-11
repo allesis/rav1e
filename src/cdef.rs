@@ -16,7 +16,7 @@ use crate::{
   encoder::FrameInvariants,
   frame::*,
   tiling::*,
-  util::{clamp, msb, CastFromPrimitive, Pixel},
+  util::{CastFromPrimitive, Pixel, clamp, msb},
 };
 
 cfg_if::cfg_if! {
@@ -150,11 +150,7 @@ pub(crate) mod rust {
       let shift = cmp::max(0, damping - msb(threshold));
       let magnitude = (threshold - (diff.abs() >> shift)).clamp(0, diff.abs());
 
-      if diff < 0 {
-        -magnitude
-      } else {
-        magnitude
-      }
+      if diff < 0 { -magnitude } else { magnitude }
     } else {
       0
     }
@@ -316,11 +312,7 @@ pub(crate) mod rust {
 #[inline]
 fn adjust_strength(strength: i32, var: i32) -> i32 {
   let i = if (var >> 6) != 0 { cmp::min(msb(var >> 6), 12) } else { 0 };
-  if var != 0 {
-    (strength * (4 + i) + 8) >> 4
-  } else {
-    0
-  }
+  if var != 0 { (strength * (4 + i) + 8) >> 4 } else { 0 }
 }
 
 #[profiling::function]
@@ -497,11 +489,7 @@ pub fn cdef_filter_superblock<T: Pixel>(
               local_pri_strength =
                 adjust_strength(cdef_pri_y_strength << coeff_shift, var);
               local_sec_strength = cdef_sec_y_strength << coeff_shift;
-              if cdef_pri_y_strength != 0 {
-                dir as usize
-              } else {
-                0
-              }
+              if cdef_pri_y_strength != 0 { dir as usize } else { 0 }
             } else {
               local_pri_strength = cdef_pri_uv_strength << coeff_shift;
               local_sec_strength = cdef_sec_uv_strength << coeff_shift;

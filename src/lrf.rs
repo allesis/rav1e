@@ -20,7 +20,7 @@ use crate::{
   encoder::FrameInvariants,
   frame::{AsRegion, Frame, Plane, PlaneConfig, PlaneOffset, PlaneSlice},
   tiling::{Area, PlaneRegion, PlaneRegionMut, Rect},
-  util::{clamp, CastFromPrimitive, ILog, Pixel},
+  util::{CastFromPrimitive, ILog, Pixel, clamp},
 };
 
 cfg_if::cfg_if! {
@@ -166,14 +166,14 @@ impl RestorationFilter {
 
 pub(crate) mod rust {
   use crate::{
+    Pixel,
     cpu_features::CpuFeatureLevel,
     frame::PlaneSlice,
     lrf::{
-      get_integral_square, sgrproj_sum_finish, SGRPROJ_RST_BITS,
-      SGRPROJ_SGR_BITS,
+      SGRPROJ_RST_BITS, SGRPROJ_SGR_BITS, get_integral_square,
+      sgrproj_sum_finish,
     },
     util::CastFromPrimitive,
-    Pixel,
   };
 
   #[inline(always)]
@@ -1063,19 +1063,11 @@ pub fn sgrproj_solve<T: Pixel>(
   let (xq0, xq1) = if s_r2 == 0 {
     // H matrix is now only the scalar h[1][1]
     // C vector is now only the scalar c[1]
-    if h[1][1] == 0. {
-      (0, 0)
-    } else {
-      (0, (c[1] / h[1][1]).round() as i32)
-    }
+    if h[1][1] == 0. { (0, 0) } else { (0, (c[1] / h[1][1]).round() as i32) }
   } else if s_r1 == 0 {
     // H matrix is now only the scalar h[0][0]
     // C vector is now only the scalar c[0]
-    if h[0][0] == 0. {
-      (0, 0)
-    } else {
-      ((c[0] / h[0][0]).round() as i32, 0)
-    }
+    if h[0][0] == 0. { (0, 0) } else { ((c[0] / h[0][0]).round() as i32, 0) }
   } else {
     let det = h[0][0].mul_add(h[1][1], -h[0][1] * h[1][0]);
     if det == 0. {

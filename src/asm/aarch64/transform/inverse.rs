@@ -8,11 +8,11 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use crate::{
+  Pixel, PixelType,
   asm::shared::transform::inverse::*,
   cpu_features::CpuFeatureLevel,
   tiling::PlaneRegionMut,
   transform::{inverse::*, *},
-  Pixel, PixelType,
 };
 
 pub fn inverse_transform_add<T: Pixel>(

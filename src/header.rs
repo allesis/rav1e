@@ -13,6 +13,7 @@ use arrayvec::ArrayVec;
 use bitstream_io::{BigEndian, BitWrite, BitWriter, LittleEndian};
 
 use crate::{
+  DeblockState, FrameInvariants, FrameState, SegmentationState, Sequence,
   api::*,
   context::*,
   ec::*,
@@ -20,7 +21,6 @@ use crate::{
   partition::*,
   tiling::MAX_TILE_WIDTH,
   util::{Fixed, Pixel},
-  DeblockState, FrameInvariants, FrameState, SegmentationState, Sequence,
 };
 
 pub const PRIMARY_REF_NONE: u32 = 7;
@@ -1207,7 +1207,7 @@ impl<W: io::Write> UncompressedHeader for BitWriter<W, BigEndian> {
 #[cfg(test)]
 mod tests {
   use bitstream_io::{BigEndian, BitWriter};
-  use nom::{error::Error, IResult};
+  use nom::{IResult, error::Error};
   use quickcheck::quickcheck;
 
   use super::ULEB128Writer;

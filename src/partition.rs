@@ -10,7 +10,7 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
-use std::mem::{transmute, MaybeUninit};
+use std::mem::{MaybeUninit, transmute};
 
 use thiserror::Error;
 

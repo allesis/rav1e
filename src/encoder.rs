@@ -18,9 +18,7 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
-use nom::combinator::eof;
 use rayon::iter::*;
-use v_frame::plane;
 
 use crate::{
   activity::*,
@@ -2698,7 +2696,7 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset,
   mode_decision: &PartitionParameters, rdo_type: RDOType,
   enc_stats: Option<&mut EncoderStats>, hashmap: HashMapVecType,
-  hash_buffer: Option<HashBufferType>,
+  _hash_buffer: Option<HashBufferType>,
 ) {
   let (mode_luma, mode_chroma) =
     (mode_decision.pred_mode_luma, mode_decision.pred_mode_chroma);

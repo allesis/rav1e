@@ -18,8 +18,9 @@ cfg_if::cfg_if! {
 }
 
 // TODO: move 1d txfm code to rust module.
-use super::clamp_value;
-use super::{consts::*, get_1d_tx_types, half_btf, TxSize, TxType};
+use super::{
+  TxSize, TxType, clamp_value, consts::*, get_1d_tx_types, half_btf,
+};
 use crate::{tiling::PlaneRegionMut, util::*};
 
 /// # Panics

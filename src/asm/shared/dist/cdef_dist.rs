@@ -9,7 +9,7 @@
 
 #[cfg(test)]
 pub mod test {
-  use rand::{rng, Rng};
+  use rand::{Rng, rng};
 
   use crate::{
     cpu_features::CpuFeatureLevel, dist::*, frame::*, tiling::Area,

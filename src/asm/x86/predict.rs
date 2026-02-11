@@ -12,14 +12,14 @@ use std::mem::MaybeUninit;
 use v_frame::pixel::PixelType;
 
 use crate::{
+  Pixel,
   cpu_features::CpuFeatureLevel,
   partition::{BlockSize, IntraEdge},
   predict::{
-    rust, IntraEdgeFilterParameters, PredictionMode, PredictionVariant,
+    IntraEdgeFilterParameters, PredictionMode, PredictionVariant, rust,
   },
   tiling::{PlaneRegion, PlaneRegionMut},
   transform::TxSize,
-  Pixel,
 };
 
 macro_rules! decl_angular_ipred_fn {

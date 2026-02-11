@@ -594,11 +594,7 @@ pub unsafe extern fn rav1e_config_set_color_description(
     transfer_characteristics: transfer,
   });
 
-  if (*cfg).cfg.enc.color_description.is_some() {
-    0
-  } else {
-    -1
-  }
+  if (*cfg).cfg.enc.color_description.is_some() { 0 } else { -1 }
 }
 
 /// Set the content light level information for HDR10 streams.
@@ -614,11 +610,7 @@ pub unsafe extern fn rav1e_config_set_content_light(
     max_frame_average_light_level,
   });
 
-  if (*cfg).cfg.enc.content_light.is_some() {
-    0
-  } else {
-    -1
-  }
+  if (*cfg).cfg.enc.content_light.is_some() { 0 } else { -1 }
 }
 
 /// Set the mastering display information for HDR10 streams.
@@ -645,11 +637,7 @@ pub unsafe extern fn rav1e_config_set_mastering_display(
     min_luminance,
   });
 
-  if (*cfg).cfg.enc.mastering_display.is_some() {
-    0
-  } else {
-    -1
-  }
+  if (*cfg).cfg.enc.mastering_display.is_some() { 0 } else { -1 }
 }
 
 /// Free the `RaConfig`.
@@ -769,11 +757,7 @@ unsafe fn option_match(
 pub unsafe extern fn rav1e_config_parse(
   cfg: *mut Config, key: *const c_char, value: *const c_char,
 ) -> c_int {
-  if option_match(cfg, key, value) == Ok(()) {
-    0
-  } else {
-    -1
-  }
+  if option_match(cfg, key, value) == Ok(()) { 0 } else { -1 }
 }
 
 /// Set a configuration parameter using its key and value as integer.
@@ -799,11 +783,7 @@ unsafe fn config_parse_bool(
   cfg: *mut Config, key: *const c_char, value: c_int,
 ) -> c_int {
   let val = CString::new(if value != 0 { "true" } else { "false" }).unwrap();
-  if option_match(cfg, key, val.as_ptr()) == Ok(()) {
-    0
-  } else {
-    -1
-  }
+  if option_match(cfg, key, val.as_ptr()) == Ok(()) { 0 } else { -1 }
 }
 
 /// Generate a new encoding context from a populated encoder configuration
@@ -1072,11 +1052,7 @@ pub unsafe extern fn rav1e_rc_send_pass_data(
 
   (*ctx).last_err = ret;
 
-  if ret.is_some() {
-    -1
-  } else {
-    0
-  }
+  if ret.is_some() { -1 } else { 0 }
 }
 
 /// Ask how many bytes of the stats file are needed before the next frame

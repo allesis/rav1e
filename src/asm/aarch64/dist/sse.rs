@@ -8,7 +8,7 @@
 // PATENTS file, you can obtain it at www.aomedia.org/license/patent.
 
 use crate::{
-  asm::aarch64::dist::{to_index, DIST_FNS_LENGTH},
+  asm::aarch64::dist::{DIST_FNS_LENGTH, to_index},
   cpu_features::CpuFeatureLevel,
   dist::*,
   encoder::IMPORTANCE_BLOCK_SIZE,
