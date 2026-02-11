@@ -1146,7 +1146,7 @@ fn inter_frame_rdo_mode_decision<T: Pixel>(
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   inter_cfg: &InterConfig, cw_checkpoint: &ContextWriterCheckpoint,
   rdo_type: RDOType, hashmap: HashMapVecType,
-  hash_buffer: Option<HashBufferType>,
+  _hash_buffer: Option<HashBufferType>,
 ) -> PartitionParameters {
   let mut best = PartitionParameters::default();
 
@@ -1422,7 +1422,7 @@ fn intra_frame_rdo_mode_decision<T: Pixel>(
   cw: &mut ContextWriter, bsize: BlockSize, tile_bo: TileBlockOffset,
   cw_checkpoint: &ContextWriterCheckpoint, rdo_type: RDOType,
   mut best: PartitionParameters, is_chroma_block: bool,
-  hashmap: HashMapVecType, hash_buffer: Option<HashBufferType>,
+  hashmap: HashMapVecType, _hash_buffer: Option<HashBufferType>,
 ) -> PartitionParameters {
   let mut modes = ArrayVec::<_, INTRA_MODES>::new();
 
@@ -1908,7 +1908,7 @@ fn rdo_partition_simple<T: Pixel, W: Writer>(
   bsize: BlockSize, tile_bo: TileBlockOffset, inter_cfg: &InterConfig,
   partition: PartitionType, rdo_type: RDOType, best_rd: f64,
   child_modes: &mut ArrayVec<PartitionParameters, 4>, hashmap: HashMapVecType,
-  hash_buffer: Option<HashBufferType>,
+  _hash_buffer: Option<HashBufferType>,
 ) -> Option<f64> {
   debug_assert!(tile_bo.0.x < ts.mi_width && tile_bo.0.y < ts.mi_height);
   let subsize = bsize.subsize(partition).unwrap();

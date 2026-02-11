@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod hash_buffer;
-pub mod hashframe;
 use std::{
   collections::{HashMap, hash_map::DefaultHasher},
   hash::{Hash, Hasher},

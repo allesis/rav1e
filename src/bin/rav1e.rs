@@ -96,13 +96,6 @@ impl<D: Decoder> Source<D> {
 
     match self.input.read_frame(ctx, &video_info) {
       Ok(frame) => {
-        // Hash test
-        let mut hasher = DefaultHasher::new();
-        let hashframe: hashframe::HashFrame<T> =
-          hashframe::HashFrame::from(frame.clone());
-        hashframe.hash(&mut hasher);
-        // End
-
         match video_info.bit_depth {
           8 | 10 | 12 => {}
           _ => return Err(CliError::new("Unsupported bit depth")),
