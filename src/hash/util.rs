@@ -1,4 +1,14 @@
 use super::{HashBufferType, HashMapVecType, HashObject, HashType};
+use crate::ec::Writer;
+
+#[inline(always)]
+pub fn write_hash<W: Writer>(w: &mut W, hash: HashType) {
+  const HASH_BITS: u32 = HashType::BITS;
+
+  ensure_sizing!(HASH_BITS, u8::MAX);
+
+  w.literal(HASH_BITS as u8, hash as u32);
+}
 
 #[inline(always)]
 pub fn get_hash_object(
