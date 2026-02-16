@@ -10,7 +10,10 @@
 use std::mem::MaybeUninit;
 
 use super::*;
-use crate::{hash::HashType, predict::PredictionMode};
+use crate::{
+  hash::{HashType, hash_buffer::ensure_sizing, util::write_hash},
+  predict::PredictionMode,
+};
 
 pub const MAX_PLANES: usize = 3;
 
@@ -1829,20 +1832,12 @@ impl ContextWriter<'_> {
     }*/
 
     if marker == 0 {
-      for byte in hash.to_be_bytes() {
-        w.bit(((byte >> 7) & 0b1).into());
-        w.bit(((byte >> 6) & 0b1).into());
-        w.bit(((byte >> 5) & 0b1).into());
-        w.bit(((byte >> 4) & 0b1).into());
-        w.bit(((byte >> 3) & 0b1).into());
-        w.bit(((byte >> 2) & 0b1).into());
-        w.bit(((byte >> 1) & 0b1).into());
-        w.bit(((byte >> 0) & 0b1).into());
-      }
+      write_hash(w, hash);
 
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       return (true, cul_lvl);
     }
+
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
       &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
