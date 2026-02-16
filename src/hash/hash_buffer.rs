@@ -72,6 +72,28 @@ macro_rules! commit {
   }};
 }
 
+// Ensure that `$test_size` is less than `$max_size`
+// We could also turn this into a `const fn` as follows:
+//
+// ```
+// const fn ensure_sizing_fn(test_size: usize, max_size: usize) {
+//   assert!(test_size <= max_size);
+// }
+// ```
+//
+// However, this means that we don't get LSP warnings from static analysis
+// So we use a macro to ensure we do
+macro_rules! ensure_sizing {
+  ($test_size:expr, $max_size:expr) => {{
+    // This will allow us to catch bad sizing match ups before runtime
+    // We need the `const _: () =` here or the assert! is not evaluated
+    // until runtime
+    // Which is not what we want
+    const _: () = assert!($test_size as usize <= $max_size as usize);
+  }};
+}
+
 pub(crate) use commit;
+pub(crate) use ensure_sizing;
 pub(crate) use optionize_buffer;
 pub(crate) use rollback;
