@@ -1817,19 +1817,12 @@ impl ContextWriter<'_> {
     {
       let cdf = &self.fc.txb_marker_cdf[txs_ctx][txb_ctx.txb_skip_ctx];
       symbol_with_update!(self, w, (marker == 0) as u32, cdf);
+
+      // WARN: For some reason writing the bit raw does not work
+      // FIX: This likely indicates a larger issue
+
+      // w.bit(marker);
     }
-
-    //   use log::info;
-
-    /*if hash == 36079 {
-      info!("Used hash {}\nHave some debug info!", hash);
-      info!("Tx Size   -> {:?}", tx_size);
-      info!("Pred Mode -> {:?}", pred_mode);
-      info!("Block Size-> {}", plane_bsize);
-      info!("Tx Type   -> {:?}", tx_type);
-      info!("Offset    -> {:?}", bo);
-      info!("(x,y) dec -> ({},{})", xdec, ydec);
-    }*/
 
     if marker == 0 {
       write_hash(w, hash);

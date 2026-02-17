@@ -10,21 +10,21 @@ use std::{
 
 use num_traits::ToPrimitive;
 
-use crate::{Pixel, prelude::BlockSize, transform::TxSize};
+use crate::{Pixel, transform::TxSize};
 
 // NOTE: Change this to set the size of hashes used in coeff hashing
 // TODO: These should probably be in hash/mod.rs or similar
 pub type HashType = u16;
 pub type HashMapType = HashMap<HashType, HashObject>;
-pub type HashMapVecType = Arc<
-  RwLock<[[HashMapType; TxSize::TX_SIZES_ALL]; BlockSize::BLOCK_SIZES_ALL]>,
->;
+pub type HashMapVecType =
+  Arc<RwLock<[[HashMapType; TxSize::TX_SIZES_ALL]; 3]>>;
 pub type HashBufferType =
   Arc<Mutex<Vec<(HashType, HashObject, usize, usize)>>>;
 pub const HASHMASK: HashType = HashType::MAX;
 
 pub struct HashObject {
   pub cul_level: u8,
+  pub hash_coeffs: Vec<u16>,
 }
 
 pub fn hashcoeffs<T: Pixel>(
