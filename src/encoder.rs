@@ -18,9 +18,8 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
-use nom::combinator::eof;
+use nom::ToUsize;
 use rayon::iter::*;
-use v_frame::plane;
 
 use crate::{
   activity::*,
@@ -31,7 +30,7 @@ use crate::{
   ec::*,
   frame::*,
   hash::{
-    HashBufferType, HashMapVecType, HashObject, HashType,
+    HashBufferType, HashMapVecType, HashType,
     hash_buffer::{HashBuffer, commit, optionize_buffer, rollback},
     hashcoeffs,
     util::{add_hash_object, get_hash_object},
@@ -1574,6 +1573,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
   let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+
   dequantize(
     qidx,
     qcoeffs,
@@ -1586,7 +1586,40 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     fi.cpu_feature_level,
   );
   // SAFETY: dequantize initialized rcoeffs
-  let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+  let mut rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+
+  // NOTE: This is a very important chunk of code to understand
+  // We need to do 3 things here:
+  // 1 -> We need to hash the coeffs we want to use
+  // 2 -> Decide based on the hash if we can use a hash to encode
+  // 3 -> Replace the rcoeffs and eob if we use the hash
+  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
+
+  let marker: u16;
+  let mut cul_lvl;
+  let hash_coeffs: Vec<u16>;
+  let mut hash_vec: Vec<T::Coeff>;
+
+  //let mut rcoeffs = rcoeffs;
+  (marker, cul_lvl, hash_coeffs) =
+    get_hash_object(hashmap, hash, tx_size as usize, p);
+
+  if marker == 0 && (need_recon_pixel || rdo_type.needs_coeff_rate()) {
+    hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
+    let hash_rcoeffs = hash_vec.as_mut_slice();
+
+    for (_, (r, c)) in hash_rcoeffs
+      .iter_mut()
+      .zip(hash_coeffs.iter().map(|&c| i32::cast_from(c)))
+      .enumerate()
+    {
+      *r = T::Coeff::cast_from(c);
+    }
+    assert!(rcoeffs.len() == hash_rcoeffs.len());
+    rcoeffs = hash_rcoeffs;
+  }
+
+  let rcoeffs = rcoeffs;
   if eob == 0 {
     // All zero coefficients is a no-op
   } else if !fi.use_tx_domain_distortion || need_recon_pixel {
@@ -1601,18 +1634,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     );
   }
 
-  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
-
-  let mut marker: u16 = 1;
-  let mut cul_lvl = 0;
-  let hash_coeffs: Vec<u16>;
-
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    (marker, cul_lvl, hash_coeffs) =
-      get_hash_object(hashmap, hash, tx_size as usize, p);
-
-    rcoeffs = hash_coeffs.iter().map(|e| e.into()).collect();
-
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
     let frame_clipped_txw: usize =
