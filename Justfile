@@ -35,8 +35,16 @@ install INSTALL_DIR=DEFAULT_INSTALL_DIR:
 	cp target/debug/rav1e {{INSTALL_DIR}}/rav1e
 install-release INSTALL_DIR=DEFAULT_INSTALL_DIR:
 	cp target/release/rav1e {{INSTALL_DIR}}/rav1e
-run VIDEO DIRECTORY=DEFAULT_DIRECTORY *ARGS: release
+run VIDEO DIRECTORY=DEFAULT_DIRECTORY *ARGS: build
+  ./target/debug/rav1e --frame-rate 30 --time-scale 1 -y -r {{DIRECTORY}}/{{VIDEO}}-reconstruction.y4m --threads 1 --low-latency -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
+run-release VIDEO DIRECTORY=DEFAULT_DIRECTORY *ARGS: release
   ./target/release/rav1e --frame-rate 30 --time-scale 1 -y --threads 1 --low-latency -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
+run-no-disable-reorder VIDEO DIRECTORY=DEFAULT_DIRECTORY *ARGS: build
+  ./target/debug/rav1e --frame-rate 30 --time-scale 1 -y --threads 1 -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
+run-no-disable-threading VIDEO DIRECTORY=DEFAULT_DIRECTORY *ARGS: build
+  ./target/debug/rav1e --frame-rate 30 --time-scale 1 -y --low-latency -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
+run-no-disable-all VIDEO DIRECTORY=DEFAULT_DIRECTORY *ARGS: build
+  ./target/debug/rav1e --frame-rate 30 --time-scale 1 -y -o {{DIRECTORY}}/{{VIDEO}}.ivf {{ARGS}} {{DIRECTORY}}/{{VIDEO}}.y4m
 check VIDEO DIRECTORY=DEFAULT_DIRECTORY: setup
   ffprobe -v error -select_streams v:0 -show_entries stream=ivf -of default=nokey=1:noprint_wrappers=1 {{DIRECTORY}}/{{VIDEO}}.ivf
 size VIDEO DIRECTORY=DEFAULT_DIRECTORY FORMAT='k':
