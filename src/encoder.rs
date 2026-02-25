@@ -18,9 +18,8 @@ use std::{
 use arg_enum_proc_macro::ArgEnum;
 use arrayvec::*;
 use bitstream_io::{BigEndian, BitWrite2, BitWriter};
-use nom::combinator::eof;
+use nom::ToUsize;
 use rayon::iter::*;
-use v_frame::plane;
 
 use crate::{
   activity::*,
@@ -30,17 +29,22 @@ use crate::{
   deblock::*,
   ec::*,
   frame::*,
-  hash::hashcoeffs,
+  hash::{
+    HashBufferType, HashMapVecType, HashType,
+    hash_buffer::{HashBuffer, commit, optionize_buffer, rollback},
+    hashcoeffs,
+    util::{add_hash_object, get_hash_object},
+  },
   header::*,
   lrf::*,
   mc::{FilterMode, MotionVector},
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
+    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
   },
   quantize::*,
-  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
+  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1569,6 +1573,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
   let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+
   dequantize(
     qidx,
     qcoeffs,
@@ -1581,9 +1586,70 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     fi.cpu_feature_level,
   );
   // SAFETY: dequantize initialized rcoeffs
-  let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+  let mut rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+
+  // NOTE: This is a very important chunk of code to understand
+  // We need to do 3 things here:
+  // 1 -> We need to hash the coeffs we want to use
+  // 2 -> Decide based on the hash if we can use a hash to encode
+  // 3 -> Replace the rcoeffs and eob if we use the hash
+  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
+
+  let marker: u16;
+  let mut cul_lvl;
+  let hash_coeffs: Vec<u16>;
+  let mut hash_vec: Vec<T::Coeff>;
+  let hash_eob;
+  let hash_tx_type: TxType;
+  let hash_tx_size: TxSize;
+
+  //let mut rcoeffs = rcoeffs;
+  (marker, cul_lvl, hash_eob, hash_coeffs, hash_tx_type, hash_tx_size) =
+    get_hash_object(hashmap, hash, tx_size as usize, p);
+
+  let marker = if marker == 0 && eob != 0 && hash_eob < eob { 0 } else { 1 };
+
+  let mut marker = marker;
+  if marker == 0 {
+    hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
+    let hash_rcoeffs = hash_vec.as_mut_slice();
+
+    for (_, (r, c)) in hash_rcoeffs
+      .iter_mut()
+      .zip(hash_coeffs.iter().map(|&c| i32::cast_from(c)))
+      .enumerate()
+    {
+      *r = T::Coeff::cast_from(c);
+    }
+    if rcoeffs == hash_rcoeffs {
+      marker = 0;
+    } else {
+      marker = 1;
+    }
+  }
+  if marker == 0 {
+    dbg!(&rcoeffs);
+  }
+  let mut eob = eob;
+  let mut tx_type = tx_type;
+  let mut tx_size = tx_size;
+  if marker == 0 {
+    eob = hash_eob;
+    tx_type = hash_tx_type;
+    tx_size = hash_tx_size;
+  }
+  let eob = eob;
+  let tx_type = tx_type;
+  let tx_size = tx_size;
+  if marker == 0 {
+    dbg!(&rcoeffs);
+  }
+
+  let rcoeffs = rcoeffs;
   if eob == 0 {
     // All zero coefficients is a no-op
+    // NOTE: This may be wrong
+    // Marker coeffs have already been inverse added (probably)
   } else if !fi.use_tx_domain_distortion || need_recon_pixel {
     inverse_transform_add(
       rcoeffs,
@@ -1596,48 +1662,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     );
   }
 
-  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
-  /*println!(
-    "HASH {} => EOB {} WIDTH {} HEIGHT {} CF {:?}",
-    hash,
-    eob,
-    tx_size.width(),
-    tx_size.height(),
-    rcoeffs
-  );*/
-
-  use log::debug;
-  debug!(
-    "HASH {:?} -> EOB {} TXTP {} W {} H {} CF {:?}",
-    hash,
-    eob,
-    tx_type as usize,
-    tx_size.width(),
-    tx_size.height(),
-    rcoeffs
-  );
-  let mut marker: u16 = 1;
-  let mut cul_lvl = 0;
-
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    // We have a hashmap, we should attempt hash based encoding
-
-    // NOTE: This could either be a lock or a try_lock
-    // If a lock is used, we will wait until the hashmap is available to continue
-    // which may DESTROY performance
-    // If we use a try_lock, we may miss chances to decrease encoding size
-    // For now a lock will be used
-    if fi.frame_type != FrameType::KEY {
-      let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-      if let Some(hashmap_lock) =
-        hashmaps_lock.get(plane_bsize.tx_size() as usize)
-      {
-        if let Some(hash_object) = hashmap_lock.get(&hash) {
-          marker = 0;
-          cul_lvl = hash_object.cul_level;
-        }
-      }
-    }
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
     let frame_clipped_txw: usize =
@@ -1686,25 +1711,21 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // EOB may have been dropped at this point so resetting it may be useless
 
   if marker == 1
-    && !skip
+    && has_coeff
     && (need_recon_pixel || rdo_type.needs_coeff_rate())
     && eob != 0
     && fi.frame_type != FrameType::KEY
   {
-    if let Some(hash_buffer) = hash_buffer {
-      let mut hash_buffer_lock =
-        hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
-      let hash_object = HashObject { cul_level: cul_lvl };
-      hash_buffer_lock.push((
-        hash,
-        hash_object,
-        plane_bsize.tx_size() as usize,
-      ));
-      /*     if hash == 36079 {
-        println!("HASH {:?}", hash);
-        println!("TX {:?}", tx_size as usize);
-      }*/
-    }
+    add_hash_object(
+      hash_buffer,
+      cul_lvl,
+      eob,
+      hash,
+      tx_size,
+      p,
+      rcoeffs.to_vec().into_iter().map(|e| e.into() as u16).collect(),
+      tx_type,
+    );
   }
 
   // Reconstruct
@@ -2724,7 +2745,6 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
       mvs,
       skip,
       hashmap.clone(),
-      hash_buffer.clone(),
     )
   } else {
     (mode_decision.tx_size, mode_decision.tx_type)
@@ -2761,7 +2781,8 @@ pub fn encode_block_with_modes<T: Pixel, W: Writer>(
     true,
     enc_stats,
     hashmap.clone(),
-    hash_buffer.clone(),
+    //hash_buffer.clone(),
+    None,
   );
 }
 
@@ -2812,6 +2833,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
 
   let mut best_partition = PartitionType::PARTITION_INVALID;
 
+  let buffer: Option<HashBuffer> = HashBuffer::new(hash_buffer);
+
   let cw_checkpoint = cw.checkpoint(&tile_bo, fi.sequence.chroma_sampling);
   let w_pre_checkpoint = w_pre_cdef.checkpoint();
   let w_post_checkpoint = w_post_cdef.checkpoint();
@@ -2835,8 +2858,6 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       tile_bo,
       inter_cfg,
       hashmap.clone(),
-      None,
-      //hash_buffer.clone(),
     );
 
     if !mode_decision.pred_mode_luma.is_intra() {
@@ -2869,7 +2890,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
         rdo_type,
         Some(enc_stats),
         hashmap.clone(),
-        hash_buffer.clone(),
+        optionize_buffer!(buffer),
       );
     }
   } // if !must_split
@@ -2911,6 +2932,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
         has_rows || has_cols || (partition == PartitionType::PARTITION_SPLIT)
       );
 
+      rollback!(buffer);
       cw.rollback(&cw_checkpoint);
       w_pre_cdef.rollback(&w_pre_checkpoint);
       w_post_cdef.rollback(&w_post_checkpoint);
@@ -2961,7 +2983,7 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           inter_cfg,
           enc_stats,
           hashmap.clone(),
-          None,
+          optionize_buffer!(buffer),
         );
         let cost = child_rdo_output.rd_cost;
         assert!(cost >= 0.0);
@@ -3009,6 +3031,8 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
       }
       */
       assert!(!rdo_output.part_modes.is_empty());
+
+      rollback!(buffer);
       cw.rollback(&cw_checkpoint);
       w_pre_cdef.rollback(&w_pre_checkpoint);
       w_post_cdef.rollback(&w_post_checkpoint);
@@ -3047,11 +3071,13 @@ fn encode_partition_bottomup<T: Pixel, W: Writer>(
           rdo_type,
           Some(enc_stats),
           hashmap.clone(),
-          hash_buffer.clone(),
+          optionize_buffer!(buffer),
         );
       }
     }
   } // if can_split {
+
+  commit!(buffer);
 
   assert!(best_partition != PartitionType::PARTITION_INVALID);
 
@@ -3134,7 +3160,6 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
       rdo_type,
       inter_cfg,
       hashmap.clone(),
-      None, // WARN: Must be none
     );
     rdo_output.part_type
   } else {
@@ -3168,8 +3193,6 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
             tile_bo,
             inter_cfg,
             hashmap.clone(),
-            hash_buffer.clone(),
-            //None,
           );
           &rdo_decision
         };
@@ -3201,8 +3224,6 @@ fn encode_partition_topdown<T: Pixel, W: Writer>(
         mvs,
         skip,
         hashmap.clone(),
-        //None,
-        hash_buffer.clone(),
       );
 
       let mut mv_stack = ArrayVec::<CandidateMV, 9>::new();
