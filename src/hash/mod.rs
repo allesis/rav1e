@@ -10,7 +10,7 @@ use std::{
 
 use num_traits::ToPrimitive;
 
-use crate::{Pixel, transform::TxSize};
+use crate::{Pixel, prelude::TxType, transform::TxSize};
 
 // NOTE: Change this to set the size of hashes used in coeff hashing
 // TODO: These should probably be in hash/mod.rs or similar
@@ -24,10 +24,13 @@ pub const HASHMASK: HashType = HashType::MAX;
 
 pub struct HashObject {
   pub cul_level: u8,
+  pub eob: u16,
   pub hash_coeffs: Vec<u16>,
+  pub tx_type: TxType,
+  pub tx_size: TxSize,
 }
 
-pub fn hashcoeffs<T: Pixel>(
+pub fn old_hashcoeffs<T: Pixel>(
   coeffs: &mut [<T as Pixel>::Coeff], eob: u16,
 ) -> HashType {
   let mut hasher = DefaultHasher::new();
@@ -45,4 +48,20 @@ pub fn hashcoeffs<T: Pixel>(
   }
   let hash = hasher.finish();
   (hash & (HASHMASK as u64)).try_into().expect("FAILED TO CONVERT HASH")
+}
+
+#[inline(always)]
+pub fn hashcoeffs<T: Pixel>(
+  coeffs: &mut [<T as Pixel>::Coeff], _eob: u16,
+) -> HashType {
+  let count: HashType =
+    (coeffs.iter().filter(|x| x.to_i32().unwrap() != 0).count() as HashType
+      & HashType::MAX)
+      .into();
+  let magnitude: HashType =
+    (coeffs.iter().map(|x| x.to_i32().unwrap()).sum::<i32>() as HashType
+      & HashType::MAX)
+      .into();
+
+  ((count << 6) & 0xFFC0) & (magnitude & 0x003F)
 }

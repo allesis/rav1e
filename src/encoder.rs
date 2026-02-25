@@ -1599,12 +1599,18 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let mut cul_lvl;
   let hash_coeffs: Vec<u16>;
   let mut hash_vec: Vec<T::Coeff>;
+  let hash_eob;
+  let hash_tx_type: TxType;
+  let hash_tx_size: TxSize;
 
   //let mut rcoeffs = rcoeffs;
-  (marker, cul_lvl, hash_coeffs) =
+  (marker, cul_lvl, hash_eob, hash_coeffs, hash_tx_type, hash_tx_size) =
     get_hash_object(hashmap, hash, tx_size as usize, p);
 
-  if marker == 0 && (need_recon_pixel || rdo_type.needs_coeff_rate()) {
+  let marker = if marker == 0 && eob != 0 && hash_eob < eob { 0 } else { 1 };
+
+  let mut marker = marker;
+  if marker == 0 {
     hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
     let hash_rcoeffs = hash_vec.as_mut_slice();
 
@@ -1615,13 +1621,35 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     {
       *r = T::Coeff::cast_from(c);
     }
-    assert!(rcoeffs.len() == hash_rcoeffs.len());
-    rcoeffs = hash_rcoeffs;
+    if rcoeffs == hash_rcoeffs {
+      marker = 0;
+    } else {
+      marker = 1;
+    }
+  }
+  if marker == 0 {
+    dbg!(&rcoeffs);
+  }
+  let mut eob = eob;
+  let mut tx_type = tx_type;
+  let mut tx_size = tx_size;
+  if marker == 0 {
+    eob = hash_eob;
+    tx_type = hash_tx_type;
+    tx_size = hash_tx_size;
+  }
+  let eob = eob;
+  let tx_type = tx_type;
+  let tx_size = tx_size;
+  if marker == 0 {
+    dbg!(&rcoeffs);
   }
 
   let rcoeffs = rcoeffs;
   if eob == 0 {
     // All zero coefficients is a no-op
+    // NOTE: This may be wrong
+    // Marker coeffs have already been inverse added (probably)
   } else if !fi.use_tx_domain_distortion || need_recon_pixel {
     inverse_transform_add(
       rcoeffs,
@@ -1684,7 +1712,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
   if marker == 1
     && has_coeff
-    && !skip
     && (need_recon_pixel || rdo_type.needs_coeff_rate())
     && eob != 0
     && fi.frame_type != FrameType::KEY
@@ -1692,10 +1719,12 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     add_hash_object(
       hash_buffer,
       cul_lvl,
+      eob,
       hash,
-      tx_size as usize,
+      tx_size,
       p,
       rcoeffs.to_vec().into_iter().map(|e| e.into() as u16).collect(),
+      tx_type,
     );
   }
 
