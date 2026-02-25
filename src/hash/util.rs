@@ -1,5 +1,5 @@
 use super::{HashBufferType, HashMapVecType, HashObject, HashType};
-use crate::ec::Writer;
+use crate::{ec::Writer, prelude::TxType, transform::TxSize};
 
 #[inline(always)]
 pub fn write_hash<W: Writer>(w: &mut W, hash: HashType) {
@@ -13,33 +13,41 @@ pub fn write_hash<W: Writer>(w: &mut W, hash: HashType) {
 #[inline(always)]
 pub fn get_hash_object(
   hashmap: HashMapVecType, hash: HashType, tx_size: usize, plane_index: usize,
-) -> (u16, u8, Vec<u16>) {
+) -> (u16, u8, u16, Vec<u16>, TxType, TxSize) {
   // NOTE: This could either be a lock or a try_lock
   // If a lock is used, we will wait until the hashmap is available to continue
   // which may DESTROY performance
   // If we use a try_lock, we may miss chances to decrease encoding size
   // For now a lock will be used
   let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-  if let Some(hashmaps_lock_tx) = hashmaps_lock.get(plane_index) {
+  if let Some(hashmaps_lock_tx) = hashmaps_lock.get(0) {
     if let Some(hashmap_lock) = hashmaps_lock_tx.get(tx_size) {
       if let Some(hash_object) = hashmap_lock.get(&hash) {
-        return (0, hash_object.cul_level, hash_object.hash_coeffs.clone());
+        return (
+          0,
+          hash_object.cul_level,
+          hash_object.eob,
+          hash_object.hash_coeffs.clone(),
+          hash_object.tx_type,
+          hash_object.tx_size,
+        );
       }
     }
   }
-  return (1, 0, vec![]);
+  return (1, 0, 0, vec![], TxType::WHT_WHT, TxSize::TX_64X64);
 }
 
 #[inline(always)]
 pub fn add_hash_object(
-  hash_buffer: Option<HashBufferType>, cul_lvl: u8, hash: HashType,
-  tx_size: usize, plane_index: usize, hash_coeffs: Vec<u16>,
+  hash_buffer: Option<HashBufferType>, cul_lvl: u8, eob: u16, hash: HashType,
+  tx_size: TxSize, plane_index: usize, hash_coeffs: Vec<u16>, tx_type: TxType,
 ) {
   if let Some(hash_buffer) = hash_buffer {
     let mut hash_buffer_lock =
       hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
-    let hash_object = HashObject { cul_level: cul_lvl, hash_coeffs };
-    hash_buffer_lock.push((hash, hash_object, tx_size, plane_index));
+    let hash_object =
+      HashObject { cul_level: cul_lvl, eob, hash_coeffs, tx_type, tx_size };
+    hash_buffer_lock.push((hash, hash_object, tx_size as usize, plane_index));
   }
 }
 
@@ -54,7 +62,7 @@ pub fn add_hashs_to_map(hashmap: HashMapVecType, hash_buffer: HashBufferType) {
     let (hash, value, tx, plane_index) = v;
 
     let hashmaps_lock_tx =
-      hashmap_lock.get_mut(*plane_index).expect("BAD INDEX ON PLANE INDEX");
+      hashmap_lock.get_mut(0).expect("BAD INDEX ON PLANE INDEX");
 
     let hashmap = hashmaps_lock_tx.get_mut(*tx).expect("BAD INDEX ON TX SIZE");
 
@@ -62,7 +70,10 @@ pub fn add_hashs_to_map(hashmap: HashMapVecType, hash_buffer: HashBufferType) {
       *hash,
       HashObject {
         cul_level: value.cul_level,
+        eob: value.eob,
         hash_coeffs: value.hash_coeffs.clone(),
+        tx_type: value.tx_type,
+        tx_size: value.tx_size,
       },
     );
   });

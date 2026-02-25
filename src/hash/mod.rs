@@ -10,7 +10,7 @@ use std::{
 
 use num_traits::ToPrimitive;
 
-use crate::{Pixel, transform::TxSize};
+use crate::{Pixel, prelude::TxType, transform::TxSize};
 
 // NOTE: Change this to set the size of hashes used in coeff hashing
 // TODO: These should probably be in hash/mod.rs or similar
@@ -24,7 +24,10 @@ pub const HASHMASK: HashType = HashType::MAX;
 
 pub struct HashObject {
   pub cul_level: u8,
+  pub eob: u16,
   pub hash_coeffs: Vec<u16>,
+  pub tx_type: TxType,
+  pub tx_size: TxSize,
 }
 
 pub fn hashcoeffs<T: Pixel>(
