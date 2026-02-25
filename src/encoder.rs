@@ -1605,9 +1605,13 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
   let mut marker: u16 = 1;
   let mut cul_lvl = 0;
+  let hash_coeffs: Vec<u16>;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
-    (marker, cul_lvl) = get_hash_object(hashmap, hash, tx_size as usize, p);
+    (marker, cul_lvl, hash_coeffs) =
+      get_hash_object(hashmap, hash, tx_size as usize, p);
+
+    rcoeffs = hash_coeffs.iter().map(|e| e.into()).collect();
 
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
@@ -1663,7 +1667,14 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     && eob != 0
     && fi.frame_type != FrameType::KEY
   {
-    add_hash_object(hash_buffer, cul_lvl, hash, tx_size as usize, p);
+    add_hash_object(
+      hash_buffer,
+      cul_lvl,
+      hash,
+      tx_size as usize,
+      p,
+      rcoeffs.to_vec().into_iter().map(|e| e.into() as u16).collect(),
+    );
   }
 
   // Reconstruct
