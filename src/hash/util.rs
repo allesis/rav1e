@@ -12,7 +12,7 @@ pub fn write_hash<W: Writer>(w: &mut W, hash: HashType) {
 
 #[inline(always)]
 pub fn get_hash_object(
-  hashmap: HashMapVecType, hash: HashType, tx_size: usize, block_size: usize,
+  hashmap: HashMapVecType, hash: HashType, tx_size: usize, _: usize,
 ) -> (u16, u8) {
   // NOTE: This could either be a lock or a try_lock
   // If a lock is used, we will wait until the hashmap is available to continue
@@ -20,13 +20,9 @@ pub fn get_hash_object(
   // If we use a try_lock, we may miss chances to decrease encoding size
   // For now a lock will be used
   let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-  if let Some(hashmaps_lock_tx) = hashmaps_lock.get(block_size) {
+  if let Some(hashmaps_lock_tx) = hashmaps_lock.get(0) {
     if let Some(hashmap_lock) = hashmaps_lock_tx.get(tx_size) {
       if let Some(hash_object) = hashmap_lock.get(&hash) {
-        if hash == 4332 {
-          use log::info;
-          info!("HASH 4332");
-        }
         return (0, hash_object.cul_level);
       }
     }
@@ -37,13 +33,13 @@ pub fn get_hash_object(
 #[inline(always)]
 pub fn add_hash_object(
   hash_buffer: Option<HashBufferType>, cul_lvl: u8, hash: HashType,
-  tx_size: usize, block_size: usize,
+  tx_size: usize, _: usize,
 ) {
   if let Some(hash_buffer) = hash_buffer {
     let mut hash_buffer_lock =
       hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
     let hash_object = HashObject { cul_level: cul_lvl };
-    hash_buffer_lock.push((hash, hash_object, tx_size, block_size));
+    hash_buffer_lock.push((hash, hash_object, tx_size));
   }
 }
 
@@ -55,21 +51,14 @@ pub fn add_hashs_to_map(hashmap: HashMapVecType, hash_buffer: HashBufferType) {
     hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
 
   hash_buffer_lock.iter().for_each(|v| {
-    let (hash, value, tx, bsize) = v;
+    let (hash, value, tx) = v;
 
     let hashmaps_lock_tx =
-      hashmap_lock.get_mut(*bsize).expect("BAD INDEX ON BLOCK SIZE");
+      hashmap_lock.get_mut(0).expect("BAD INDEX ON BLOCK SIZE");
 
     let hashmap = hashmaps_lock_tx.get_mut(*tx).expect("BAD INDEX ON TX SIZE");
 
     hashmap.insert(*hash, HashObject { cul_level: value.cul_level });
-    use log::info;
-    if *hash == 4332 {
-      info!(
-        "ADDING {:?} TO HASHMAP WITH BS {:?} AND TX {:?}\n",
-        hash, bsize, tx
-      );
-    }
   });
   *hash_buffer_lock = Vec::new();
 }

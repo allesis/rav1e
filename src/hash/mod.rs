@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod hash_buffer;
-pub mod hashframe;
 pub mod util;
 use std::{
   collections::{HashMap, hash_map::DefaultHasher},
@@ -19,8 +18,7 @@ pub type HashMapType = HashMap<HashType, HashObject>;
 pub type HashMapVecType = Arc<
   RwLock<[[HashMapType; TxSize::TX_SIZES_ALL]; BlockSize::BLOCK_SIZES_ALL]>,
 >;
-pub type HashBufferType =
-  Arc<Mutex<Vec<(HashType, HashObject, usize, usize)>>>;
+pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject, usize)>>>;
 pub const HASHMASK: HashType = HashType::MAX;
 
 pub struct HashObject {

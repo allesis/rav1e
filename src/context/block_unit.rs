@@ -1843,8 +1843,22 @@ impl ContextWriter<'_> {
     if marker == 0 {
       write_hash(w, hash);
 
-      self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
-      return (true, cul_lvl);
+      let checkpoint = w.checkpoint();
+
+      let cul_level =
+        self.encode_coeff_signs(coeffs, w, plane_type, txb_ctx, cul_level);
+
+      w.rollback(&checkpoint);
+
+      self.bc.set_coeff_context(
+        plane,
+        bo,
+        tx_size,
+        xdec,
+        ydec,
+        cul_level as u8,
+      );
+      return (true, cul_level as u8);
     }
 
     // Signal tx_type for luma plane only
