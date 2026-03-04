@@ -46,6 +46,9 @@ impl Default for HashBuffer {
   }
 }
 
+// TODO: These do not need to be macros
+// The golden rule applies:
+// 'Never do with a macro what you can do with a function'
 macro_rules! optionize_buffer {
   ($hash_buffer:expr) => {{
     if let Some(ref hash_buffer) = $hash_buffer {

@@ -29,9 +29,10 @@ use crate::{
   ec::*,
   frame::*,
   hash::{
-    HashBufferType, HashMapVecType, HashObject, HashType,
-    hash_buffer::{HashBuffer, commit, optionize_buffer, rollback},
+    hash_buffer::{commit, optionize_buffer, rollback, HashBuffer},
     hashcoeffs,
+    util::{add_hash_object, get_hash_object},
+    HashBufferType, HashMapVecType, HashObject, HashType,
   },
   header::*,
   lrf::*,
@@ -39,10 +40,10 @@ use crate::{
   me::*,
   partition::{PartitionType::*, RefType::*, *},
   predict::{
-    AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode, luma_ac,
+    luma_ac, AngleDelta, IntraEdgeFilterParameters, IntraParam, PredictionMode,
   },
   quantize::*,
-  rate::{FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE, QuantizerParameters},
+  rate::{QuantizerParameters, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, QSCALE},
   rdo::*,
   segmentation::*,
   serialize::{Deserialize, Serialize},
@@ -1567,6 +1568,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     fi.sequence.bit_depth,
     fi.cpu_feature_level,
   );
+
   // SAFETY: forward_transform initialized coeffs
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
@@ -1584,6 +1586,19 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   );
   // SAFETY: dequantize initialized rcoeffs
   let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
+
+  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
+
+  let (marker, hash_cul_level, hash_coeffs) =
+    get_hash_object::<T>(hashmap, hash);
+  let mut hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
+  let hash_rcoeffs: &[<T as Pixel>::Coeff] = hash_vec.as_mut_slice();
+  for (r, c) in
+    rcoeffs.iter_mut().zip(hash_rcoeffs.iter().map(|&c| i32::cast_from(c)))
+  {
+    *r = T::Coeff::cast_from(c);
+  }
+
   if eob == 0 {
     // All zero coefficients is a no-op
   } else if !fi.use_tx_domain_distortion || need_recon_pixel {
@@ -1598,7 +1613,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     );
   }
 
-  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
   /*println!(
     "HASH {} => EOB {} WIDTH {} HEIGHT {} CF {:?}",
     hash,
@@ -1618,8 +1632,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     tx_size.height(),
     rcoeffs
   );
-  let mut marker: u16 = 1;
-  let mut cul_lvl = 0;
+  let mut cul_lvl = hash_cul_level;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     // We have a hashmap, we should attempt hash based encoding
@@ -1629,18 +1642,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     // which may DESTROY performance
     // If we use a try_lock, we may miss chances to decrease encoding size
     // For now a lock will be used
-    let hashmaps_lock = hashmap.read().expect("FAILED TO LOCK HASHMAP");
-    if let Some(hashmap_lock) =
-      hashmaps_lock.get(plane_bsize.tx_size() as usize)
-    {
-      if let Some(hash_object) = hashmap_lock.get(&hash) {
-        // We have previously sent these coefficents
-        //panic!("USED A HASH");
-        // Marker is 1
-        marker = 0;
-        cul_lvl = hash_object.cul_level;
-      }
-    }
     debug_assert!((((fi.w_in_b - frame_bo.0.x) << MI_SIZE_LOG2) >> xdec) >= 4);
     debug_assert!((((fi.h_in_b - frame_bo.0.y) << MI_SIZE_LOG2) >> ydec) >= 4);
     let frame_clipped_txw: usize =
@@ -1664,7 +1665,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       fi.use_reduced_tx_set,
       frame_clipped_txw,
       frame_clipped_txh,
-      cul_lvl,
+      hash_cul_level,
       hash.into(),
       marker,
     );
@@ -1695,20 +1696,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     && eob != 0
     && fi.frame_type != FrameType::KEY
   {
-    if let Some(hash_buffer) = hash_buffer {
-      let mut hash_buffer_lock =
-        hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");
-      let hash_object = HashObject { cul_level: cul_lvl };
-      hash_buffer_lock.push((
-        hash,
-        hash_object,
-        plane_bsize.tx_size() as usize,
-      ));
-      /*     if hash == 36079 {
-        println!("HASH {:?}", hash);
-        println!("TX {:?}", tx_size as usize);
-      }*/
-    }
+    add_hash_object::<T>(hash_buffer, cul_lvl, hash, tx_size as usize, coeffs);
   }
 
   // Reconstruct

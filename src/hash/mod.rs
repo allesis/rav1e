@@ -1,14 +1,15 @@
 #[macro_use]
 pub mod hash_buffer;
+pub mod util;
 use std::{
-  collections::{HashMap, hash_map::DefaultHasher},
+  collections::{hash_map::DefaultHasher, HashMap},
   hash::{Hash, Hasher},
   sync::{Arc, Mutex, RwLock},
 };
 
 use num_traits::ToPrimitive;
 
-use crate::{Pixel, transform::TxSize};
+use crate::{transform::TxSize, Pixel};
 
 // NOTE: Change this to set the size of hashes used in coeff hashing
 // TODO: These should probably be in hash/mod.rs or similar
@@ -20,6 +21,7 @@ pub const HASHMASK: HashType = HashType::MAX;
 
 pub struct HashObject {
   pub cul_level: u8,
+  pub hash_coeffs: Vec<i32>,
 }
 
 pub fn hashcoeffs<T: Pixel>(

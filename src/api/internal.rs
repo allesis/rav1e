@@ -22,17 +22,17 @@ use av_scenechange::SceneChangeDetector;
 use crate::{
   activity::ActivityMask,
   api::{
-    EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35, lookahead::*,
+    lookahead::*, EncoderConfig, EncoderStatus, FrameType, Opaque, Packet, T35,
   },
   color::ChromaSampling::Cs400,
   dist::get_satd,
   encoder::*,
   frame::*,
-  hash::{HashBufferType, HashMapVecType, HashObject},
+  hash::{util::add_hashs_to_map, HashBufferType, HashMapVecType, HashObject},
   partition::*,
   rate::{
-    FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P, FRAME_SUBTYPE_SEF,
-    RCState,
+    RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,
+    FRAME_SUBTYPE_SEF,
   },
   stats::EncoderStats,
   tiling::Area,
@@ -1498,19 +1498,7 @@ impl<T: Pixel> ContextInner<T> {
       self.frame_data.get(&cur_output_frameno).unwrap().as_ref().unwrap();
     let fi = &frame_data.fi;
     {
-      let mut hashmap_lock =
-        self.hashmap.write().expect("FAILED TO LOCK HASHMAP");
-      let mut hash_buffer_lock =
-        self.hash_buffer.lock().expect("FAILED TO LOCK NEW HASHMAP");
-      if fi.show_frame {
-        hash_buffer_lock.iter().for_each(|v| {
-          let (hash, value, tx) = v;
-          let hashmap =
-            hashmap_lock.get_mut(*tx).expect("FAILED TO FIND HASHMAP");
-          hashmap.insert(*hash, HashObject { cul_level: value.cul_level });
-        });
-      }
-      *hash_buffer_lock = Vec::new();
+      add_hashs_to_map::<T>(self.hashmap.clone(), self.hash_buffer.clone());
     }
 
     self.output_frameno += 1;
