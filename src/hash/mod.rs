@@ -38,12 +38,7 @@ pub fn quantize<T: Pixel>(coeffs: &[<T as Pixel>::Coeff]) -> Vec<u8> {
 
 pub fn hashcoeffs<T: Pixel>(coeffs: Vec<u8>) -> HashType {
   let mut hasher = DefaultHasher::new();
-  coeffs.iter().for_each(|coeff| {
-    if *coeff == 0 {
-    } else {
-      (*coeff).hash(&mut hasher)
-    }
-  });
+  coeffs.iter().for_each(|coeff| (*coeff).hash(&mut hasher));
   let hash = hasher.finish();
   (hash & (HASHMASK as u64)).try_into().expect("FAILED TO CONVERT HASH")
 }

@@ -97,6 +97,5 @@ macro_rules! ensure_sizing {
 }
 
 pub(crate) use commit;
-pub(crate) use ensure_sizing;
 pub(crate) use optionize_buffer;
 pub(crate) use rollback;

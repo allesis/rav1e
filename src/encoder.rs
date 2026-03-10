@@ -1593,12 +1593,15 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
 
   let (marker, hash_cul_level, hash_coeffs) =
     get_hash_object::<T>(hashmap, hash);
-  let mut hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
-  let hash_rcoeffs: &[<T as Pixel>::Coeff] = hash_vec.as_mut_slice();
-  for (r, c) in
-    rcoeffs.iter_mut().zip(hash_rcoeffs.iter().map(|&c| i32::cast_from(c)))
-  {
-    *r = T::Coeff::cast_from(c);
+
+  if marker == 1 {
+    let mut hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
+    let hash_rcoeffs: &[<T as Pixel>::Coeff] = hash_vec.as_mut_slice();
+    for (r, c) in
+      rcoeffs.iter_mut().zip(hash_rcoeffs.iter().map(|&c| i32::cast_from(c)))
+    {
+      *r = T::Coeff::cast_from(c);
+    }
   }
 
   if eob == 0 {
