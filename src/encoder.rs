@@ -32,7 +32,7 @@ use crate::{
     hash_buffer::{commit, optionize_buffer, rollback, HashBuffer},
     hashcoeffs,
     util::{add_hash_object, get_hash_object},
-    HashBufferType, HashMapVecType, HashObject, HashType,
+    HashBufferType, HashMapVecType, HashType,
   },
   header::*,
   lrf::*,
@@ -1573,6 +1573,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
   let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+
   dequantize(
     qidx,
     qcoeffs,
@@ -1587,7 +1588,8 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // SAFETY: dequantize initialized rcoeffs
   let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
 
-  let hash: HashType = hashcoeffs::<T>(rcoeffs, eob);
+  let hash_rcoeffs = crate::hash::quantize::<T>(rcoeffs);
+  let hash: HashType = hashcoeffs::<T>(hash_rcoeffs);
 
   let (marker, hash_cul_level, hash_coeffs) =
     get_hash_object::<T>(hashmap, hash);

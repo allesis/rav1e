@@ -28,7 +28,7 @@ use crate::{
   dist::get_satd,
   encoder::*,
   frame::*,
-  hash::{util::add_hashs_to_map, HashBufferType, HashMapVecType, HashObject},
+  hash::{util::add_hashs_to_map, HashBufferType, HashMapVecType},
   partition::*,
   rate::{
     RCState, FRAME_NSUBTYPES, FRAME_SUBTYPE_I, FRAME_SUBTYPE_P,

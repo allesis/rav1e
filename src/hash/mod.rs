@@ -8,6 +8,7 @@ use std::{
 };
 
 use num_traits::ToPrimitive;
+use vq::{Quantizer, ScalarQuantizer};
 
 use crate::{transform::TxSize, Pixel};
 
@@ -24,22 +25,25 @@ pub struct HashObject {
   pub hash_coeffs: Vec<i32>,
 }
 
-pub fn hashcoeffs<T: Pixel>(
-  coeffs: &mut [<T as Pixel>::Coeff], eob: u16,
-) -> HashType {
+pub fn quantize<T: Pixel>(coeffs: &[<T as Pixel>::Coeff]) -> Vec<u8> {
+  let vec_coeffs =
+    coeffs.iter().map(|coeff| coeff.to_f32().unwrap()).collect::<Vec<f32>>();
+
+  let sq: ScalarQuantizer = ScalarQuantizer::new(0.0, 31.0, 32).unwrap();
+
+  let qcoeffs = sq.quantize(&vec_coeffs).unwrap();
+
+  qcoeffs
+}
+
+pub fn hashcoeffs<T: Pixel>(coeffs: Vec<u8>) -> HashType {
   let mut hasher = DefaultHasher::new();
   coeffs.iter().for_each(|coeff| {
-    if coeff.to_i32().unwrap() == 0 {
+    if *coeff == 0 {
     } else {
-      coeff.to_i32().unwrap().hash(&mut hasher)
+      (*coeff).hash(&mut hasher)
     }
   });
-  if eob == 0 {
-    eob.hash(&mut hasher);
-  } else {
-    // WARN: Will never subtract with overflow since eob > 0
-    (eob - 1).hash(&mut hasher);
-  }
   let hash = hasher.finish();
   (hash & (HASHMASK as u64)).try_into().expect("FAILED TO CONVERT HASH")
 }
