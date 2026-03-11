@@ -8,7 +8,18 @@ pub fn write_hash<W: Writer>(w: &mut W, hash: HashType) {
   const HASH_BITS: u32 = HashType::BITS;
 
   ensure_sizing!(HASH_BITS, u8::MAX);
-  w.literal(HASH_BITS as u8, hash as u32);
+
+  for byte in hash.to_be_bytes() {
+    w.bit(((byte >> 7) & 0b1).into());
+    w.bit(((byte >> 6) & 0b1).into());
+    w.bit(((byte >> 5) & 0b1).into());
+    w.bit(((byte >> 4) & 0b1).into());
+    w.bit(((byte >> 3) & 0b1).into());
+    w.bit(((byte >> 2) & 0b1).into());
+    w.bit(((byte >> 1) & 0b1).into());
+    w.bit(((byte >> 0) & 0b1).into());
+  }
+  //w.literal(HASH_BITS as u8, hash as u32);
 }
 
 #[inline(always)]
@@ -32,6 +43,9 @@ pub fn add_hash_object<T: Pixel>(
   hash_buffer: Option<HashBufferType>, cul_lvl: u8, eob: u16, hash: HashType,
   rcoeffs: &mut [<T as Pixel>::Coeff],
 ) {
+  if hash == 44297 {
+    dbg!(&rcoeffs);
+  }
   if let Some(hash_buffer) = hash_buffer {
     let mut hash_buffer_lock =
       hash_buffer.lock().expect("FAILED TO LOCK HASHMAP");

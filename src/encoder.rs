@@ -1572,7 +1572,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // SAFETY: forward_transform initialized coeffs
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
-  let mut eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+  let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
 
   dequantize(
     qidx,
@@ -1623,26 +1623,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       fi.cpu_feature_level,
     );
   }
-
-  /*println!(
-    "HASH {} => EOB {} WIDTH {} HEIGHT {} CF {:?}",
-    hash,
-    eob,
-    tx_size.width(),
-    tx_size.height(),
-    rcoeffs
-  );*/
-
-  use log::debug;
-  debug!(
-    "HASH {:?} -> EOB {} TXTP {} W {} H {} CF {:?}",
-    hash,
-    eob,
-    tx_type as usize,
-    tx_size.width(),
-    tx_size.height(),
-    rcoeffs
-  );
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     // We have a hashmap, we should attempt hash based encoding

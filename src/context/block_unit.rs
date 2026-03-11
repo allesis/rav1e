@@ -1831,18 +1831,6 @@ impl ContextWriter<'_> {
       return (false, cul_lvl);
     }
 
-    const VAL: u32 = 0xFFFFFFFF;
-
-    for byte in VAL.to_be_bytes() {
-      w.bit(((byte >> 7) & 0b1).into());
-      w.bit(((byte >> 6) & 0b1).into());
-      w.bit(((byte >> 5) & 0b1).into());
-      w.bit(((byte >> 4) & 0b1).into());
-      w.bit(((byte >> 3) & 0b1).into());
-      w.bit(((byte >> 2) & 0b1).into());
-      w.bit(((byte >> 1) & 0b1).into());
-      w.bit(((byte >> 0) & 0b1).into());
-    }
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
       &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
