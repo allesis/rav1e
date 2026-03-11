@@ -31,7 +31,7 @@ use crate::{
   hash::{
     hash_buffer::{commit, optionize_buffer, rollback, HashBuffer},
     hashcoeffs,
-    util::{add_hash_object, get_hash_object},
+    util::{add_hash_object, get_hash_object, replace_coeffs},
     HashBufferType, HashMapVecType, HashType,
   },
   header::*,
@@ -1572,7 +1572,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // SAFETY: forward_transform initialized coeffs
   let coeffs = unsafe { slice_assume_init_mut(coeffs) };
 
-  let eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
+  let mut eob = ts.qc.quantize(coeffs, qcoeffs, tx_size, tx_type);
 
   dequantize(
     qidx,
@@ -1588,21 +1588,27 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
   // SAFETY: dequantize initialized rcoeffs
   let rcoeffs = unsafe { slice_assume_init_mut(rcoeffs) };
 
-  let hash_rcoeffs = crate::hash::quantize::<T>(rcoeffs);
-  let hash: HashType = hashcoeffs::<T>(hash_rcoeffs);
+  let hash_qcoeffs = crate::hash::quantize::<T>(rcoeffs);
+  let hash: HashType = hashcoeffs::<T>(hash_qcoeffs);
 
-  let (marker, hash_cul_level, hash_coeffs) =
-    get_hash_object::<T>(hashmap, hash);
+  let marker;
 
-  if marker == 1 {
-    let mut hash_vec = vec![T::Coeff::cast_from(0); hash_coeffs.len()];
-    let hash_rcoeffs: &[<T as Pixel>::Coeff] = hash_vec.as_mut_slice();
-    for (r, c) in
-      rcoeffs.iter_mut().zip(hash_rcoeffs.iter().map(|&c| i32::cast_from(c)))
-    {
-      *r = T::Coeff::cast_from(c);
-    }
+  let mut cul_lvl;
+
+  if let Some(hash_object) = get_hash_object::<T>(hashmap, hash) {
+    cul_lvl = hash_object.cul_level;
+    marker = 0;
+    replace_coeffs::<T>(&hash_object.hash_coeffs, rcoeffs);
+  } else {
+    marker = 1;
+    // CHECK: This could be wrong, I forget how the impl works
+    // Either way this is a terrible way to do things, probably fix
+    // FIX: This
+    cul_lvl = 0;
   }
+
+  // Demutify
+  let eob = eob;
 
   if eob == 0 {
     // All zero coefficients is a no-op
@@ -1637,7 +1643,6 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     tx_size.height(),
     rcoeffs
   );
-  let mut cul_lvl = hash_cul_level;
 
   let has_coeff = if need_recon_pixel || rdo_type.needs_coeff_rate() {
     // We have a hashmap, we should attempt hash based encoding
@@ -1670,17 +1675,17 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
       fi.use_reduced_tx_set,
       frame_clipped_txw,
       frame_clipped_txh,
-      hash_cul_level,
+      cul_lvl,
       hash.into(),
       marker,
     );
+    // We either will return the same cul_level (used hash)
+    // or we return the current one for the coeffs (no hash)
     cul_lvl = cul_level;
     res_val
   } else {
     true
   };
-
-  let marker = marker;
 
   if let Some(enc_stats) = enc_stats {
     if has_coeff && marker == 0 {
@@ -1701,7 +1706,7 @@ pub fn encode_tx_block<'a, T: Pixel, W: Writer>(
     && eob != 0
     && fi.frame_type != FrameType::KEY
   {
-    add_hash_object::<T>(hash_buffer, cul_lvl, hash, tx_size as usize, coeffs);
+    add_hash_object::<T>(hash_buffer, cul_lvl, eob, hash, rcoeffs);
   }
 
   // Reconstruct

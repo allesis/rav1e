@@ -10,7 +10,10 @@
 use std::mem::MaybeUninit;
 
 use super::*;
-use crate::{hash::HashType, predict::PredictionMode};
+use crate::{
+  hash::{util::write_hash, HashType},
+  predict::PredictionMode,
+};
 
 pub const MAX_PLANES: usize = 3;
 
@@ -1564,9 +1567,17 @@ impl ContextWriter<'_> {
         4
       }
     } else if avail_up {
-      if above_single { above_backward as usize } else { 3 }
+      if above_single {
+        above_backward as usize
+      } else {
+        3
+      }
     } else if avail_left {
-      if left_single { left_backward as usize } else { 3 }
+      if left_single {
+        left_backward as usize
+      } else {
+        3
+      }
     } else {
       1
     }
@@ -1610,9 +1621,17 @@ impl ContextWriter<'_> {
       if !above_comp_inter && !left_comp_inter {
         1 + 2 * samedir
       } else if !above_comp_inter {
-        if !left_uni_comp { 1 } else { 3 + samedir }
+        if !left_uni_comp {
+          1
+        } else {
+          3 + samedir
+        }
       } else if !left_comp_inter {
-        if !above_uni_comp { 1 } else { 3 + samedir }
+        if !above_uni_comp {
+          1
+        } else {
+          3 + samedir
+        }
       } else if !above_uni_comp && !left_uni_comp {
         0
       } else if !above_uni_comp || !left_uni_comp {
@@ -1811,6 +1830,19 @@ impl ContextWriter<'_> {
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       return (false, cul_lvl);
     }
+
+    const VAL: u32 = 0xFFFFFFFF;
+
+    for byte in VAL.to_be_bytes() {
+      w.bit(((byte >> 7) & 0b1).into());
+      w.bit(((byte >> 6) & 0b1).into());
+      w.bit(((byte >> 5) & 0b1).into());
+      w.bit(((byte >> 4) & 0b1).into());
+      w.bit(((byte >> 3) & 0b1).into());
+      w.bit(((byte >> 2) & 0b1).into());
+      w.bit(((byte >> 1) & 0b1).into());
+      w.bit(((byte >> 0) & 0b1).into());
+    }
     let mut levels_buf = [0u8; TX_PAD_2D];
     let levels: &mut [u8] =
       &mut levels_buf[TX_PAD_TOP * (height + TX_PAD_HOR)..];
@@ -1825,29 +1857,8 @@ impl ContextWriter<'_> {
       symbol_with_update!(self, w, (marker == 0) as u32, cdf);
     }
 
-    //   use log::info;
-
-    /*if hash == 36079 {
-      info!("Used hash {}\nHave some debug info!", hash);
-      info!("Tx Size   -> {:?}", tx_size);
-      info!("Pred Mode -> {:?}", pred_mode);
-      info!("Block Size-> {}", plane_bsize);
-      info!("Tx Type   -> {:?}", tx_type);
-      info!("Offset    -> {:?}", bo);
-      info!("(x,y) dec -> ({},{})", xdec, ydec);
-    }*/
-
     if marker == 0 {
-      for byte in hash.to_be_bytes() {
-        w.bit(((byte >> 7) & 0b1).into());
-        w.bit(((byte >> 6) & 0b1).into());
-        w.bit(((byte >> 5) & 0b1).into());
-        w.bit(((byte >> 4) & 0b1).into());
-        w.bit(((byte >> 3) & 0b1).into());
-        w.bit(((byte >> 2) & 0b1).into());
-        w.bit(((byte >> 1) & 0b1).into());
-        w.bit(((byte >> 0) & 0b1).into());
-      }
+      write_hash(w, hash);
 
       self.bc.set_coeff_context(plane, bo, tx_size, xdec, ydec, cul_lvl);
       return (true, cul_lvl);

@@ -10,26 +10,30 @@ use std::{
 use num_traits::ToPrimitive;
 use vq::{Quantizer, ScalarQuantizer};
 
-use crate::{transform::TxSize, Pixel};
+use crate::Pixel;
 
 // NOTE: Change this to set the size of hashes used in coeff hashing
 // TODO: These should probably be in hash/mod.rs or similar
 pub type HashType = u16;
 pub type HashMapType = HashMap<HashType, HashObject>;
-pub type HashMapVecType = Arc<RwLock<[HashMapType; TxSize::TX_SIZES_ALL]>>;
-pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject, usize)>>>;
+pub type HashMapVecType = Arc<RwLock<HashMapType>>;
+pub type HashBufferType = Arc<Mutex<Vec<(HashType, HashObject)>>>;
 pub const HASHMASK: HashType = HashType::MAX;
 
+#[derive(Clone)]
 pub struct HashObject {
   pub cul_level: u8,
   pub hash_coeffs: Vec<i32>,
+  pub hash_eob: u16,
 }
 
 pub fn quantize<T: Pixel>(coeffs: &[<T as Pixel>::Coeff]) -> Vec<u8> {
-  let vec_coeffs =
-    coeffs.iter().map(|coeff| coeff.to_f32().unwrap()).collect::<Vec<f32>>();
+  let vec_coeffs = coeffs
+    .iter()
+    .map(|coeff| (coeff.to_i32().unwrap()) as f32)
+    .collect::<Vec<f32>>();
 
-  let sq: ScalarQuantizer = ScalarQuantizer::new(0.0, 31.0, 32).unwrap();
+  let sq: ScalarQuantizer = ScalarQuantizer::new(0.0, 255.0, 256).unwrap();
 
   let qcoeffs = sq.quantize(&vec_coeffs).unwrap();
 
