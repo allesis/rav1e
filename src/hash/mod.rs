@@ -7,9 +7,6 @@ use std::{
   sync::{Arc, Mutex, RwLock},
 };
 
-use num_traits::ToPrimitive;
-use vq::{Quantizer, ScalarQuantizer};
-
 use crate::Pixel;
 
 // NOTE: Change this to set the size of hashes used in coeff hashing
@@ -27,17 +24,12 @@ pub struct HashObject {
   pub hash_eob: u16,
 }
 
-pub fn quantize<T: Pixel>(coeffs: &[<T as Pixel>::Coeff]) -> Vec<u8> {
-  let vec_coeffs = coeffs
+pub fn quantize(coeffs: Vec<i32>) -> Vec<u8> {
+  coeffs
     .iter()
-    .map(|coeff| (coeff.to_i32().unwrap()) as f32)
-    .collect::<Vec<f32>>();
-
-  let sq: ScalarQuantizer = ScalarQuantizer::new(0.0, 255.0, 256).unwrap();
-
-  let qcoeffs = sq.quantize(&vec_coeffs).unwrap();
-
-  qcoeffs
+    // TODO: Find a better quantization method
+    .map(|coeff| coeff >> 3)
+    .collect::<Vec<u8>>()
 }
 
 pub fn hashcoeffs<T: Pixel>(coeffs: Vec<u8>) -> HashType {
